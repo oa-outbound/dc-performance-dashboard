@@ -616,6 +616,12 @@
              target: MONTHLY_TARGET };
   }
 
+  function wholeMonth(ym) {
+    const [y, m] = ym.split('-').map(Number), out = [];
+    for (let d = 1; d <= new Date(y, m, 0).getDate(); d++) out.push(localIso(new Date(y, m - 1, d)));
+    return out;
+  }
+
   function fmtShort(iso) {
     const p = iso.split('-').map(Number);
     return new Date(p[0], p[1] - 1, p[2]).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -695,9 +701,12 @@
 
   // ── Render ───────────────────────────────────────────────────────────────
   function renderAll() {
-    const { dates, label, target } = periodDates();
-    $('periodLabel').textContent = label + ' · ' + dates.length + (dates.length === 1 ? ' day' : ' days') + ' so far';
-    const t = tally(dates);
+    const { dates, label, target, ym } = periodDates();
+    $('periodLabel').textContent = label + ' · ' + dates.length + (dates.length === 1 ? ' day' : ' days') + ' so far'
+      + (DC_SOURCE === 'feed' && _period === 'month' ? ' · counts include upcoming meetings this month' : '');
+    // Feed mode counts the whole current month (held + upcoming), as the Outbound Dashboard does.
+    // dates stays capped at today so the pace and trend figures keep meaning "so far".
+    const t = tally(DC_SOURCE === 'feed' && _period === 'month' ? wholeMonth(ym) : dates);
     renderFloor(t, dates, target);
     renderTeams(t, target);
     renderBoards(t);

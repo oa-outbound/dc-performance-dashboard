@@ -1928,9 +1928,10 @@
     } else if (currentView === 'mtd') {
       const today = localIso(new Date());
       const [ty, tm] = today.split('-');
-      const { dates, counts } = aggregateMonth(`${ty}-${tm}`, true);
+      // Feed mode shows the whole month (held + upcoming meetings), as the Outbound Dashboard does.
+      const { dates, counts } = aggregateMonth(`${ty}-${tm}`, DC_SOURCE !== 'feed');
       const showup = aggregateShowupForDates(dates);
-      $('dateHeading').textContent = 'Month to Date — ' + wtdRangeLabel(dates);
+      $('dateHeading').textContent = (DC_SOURCE === 'feed' ? 'This Month (held + upcoming) — ' : 'Month to Date — ') + wtdRangeLabel(dates);
       c.appendChild(buildSummary('Month Total', counts, MONTHLY_TARGET, 'hit monthly target', showup));
       for (const team of TEAMS) c.appendChild(buildTeamSection(team, counts, 'mtd', showup));
     } else if (currentView === 'permonth') {
@@ -1990,7 +1991,7 @@
 
     // Friday of this week
     const friday = new Date(monday);
-    friday.setDate(monday.getDate() + 4);
+    friday.setDate(monday.getDate() + (DC_SOURCE === 'feed' ? 6 : 4));   // feed: through Sunday
 
     // Cap at today so we don't include future dates
     const today = new Date();
@@ -2001,7 +2002,7 @@
     const cur = new Date(monday);
     while (cur <= end) {
       const d2 = cur.getDay();
-      if (d2 !== 0 && d2 !== 6) dates.push(localIso(cur));
+      if ((d2 !== 0 && d2 !== 6) || feedWeekendHasDcs(localIso(cur))) dates.push(localIso(cur));
       cur.setDate(cur.getDate() + 1);
     }
     return dates;
@@ -2019,6 +2020,12 @@
     return { dates, counts };
   }
 
+  // By meeting date, a weekend meeting is a real DC (leads are in other time zones), so in
+  // feed mode a weekend day is counted whenever it carries DCs. Matches the Outbound Dashboard.
+  function feedWeekendHasDcs(iso) {
+    return DC_SOURCE === 'feed' && Object.keys(aggregateForDate(iso)).length > 0;
+  }
+
   function aggregateMonth(yearMonth, capToday) {
     const [y, m] = yearMonth.split('-').map(Number);
     const lastDay = new Date(y, m, 0);
@@ -2028,7 +2035,7 @@
     const cur = new Date(y, m-1, 1);
     while (cur <= end) {
       const dow = cur.getDay();
-      if (dow !== 0 && dow !== 6) dates.push(localIso(cur));
+      if ((dow !== 0 && dow !== 6) || feedWeekendHasDcs(localIso(cur))) dates.push(localIso(cur));
       cur.setDate(cur.getDate() + 1);
     }
     const counts = {};

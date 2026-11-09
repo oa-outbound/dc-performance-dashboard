@@ -23,9 +23,23 @@ var FIELDS = [
   'invalid', 'scheduled', 'rescheduled', 'no_outcome'
 ];
 
-/** Every 30 minutes: trailing 7 days (no params). */
+/**
+ * Every 30 minutes: the last 7 days through the end of this month. Going to month end
+ * brings in meetings already booked for later this month, so the dashboard's month total
+ * matches the Outbound Dashboard (held + upcoming).
+ */
 function pullRecent() {
-  runPull_('recent', null, null);
+  var now = new Date();
+  var from = fmt_(new Date(now.getTime() - 7 * 24 * 3600 * 1000));
+  runPull_('recent', from, monthEnd_(now));
+}
+
+/** Last day of the current month, Manila, as YYYY-MM-DD. */
+function monthEnd_(now) {
+  var y = Number(Utilities.formatDate(now, TZ, 'yyyy'));
+  var m = Number(Utilities.formatDate(now, TZ, 'M'));
+  var last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  return y + '-' + (m < 10 ? '0' + m : m) + '-' + (last < 10 ? '0' + last : last);
 }
 
 /**
@@ -41,7 +55,7 @@ function pullMonth() {
   var d = Number(Utilities.formatDate(now, TZ, 'd'));
   if (d <= 7) { m -= 1; if (m === 0) { m = 12; y -= 1; } }
   var from = y + '-' + (m < 10 ? '0' + m : m) + '-01';
-  runPull_('month', from, today);
+  runPull_('month', from, monthEnd_(now));
 }
 
 /**
