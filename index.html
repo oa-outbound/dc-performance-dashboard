@@ -1155,8 +1155,8 @@
           <!-- BEEF coaching fields (Behavior, Example, Effect, Future) -->
           <div id="clBEEFFields" style="display:none">
             <div class="cl-field" style="margin-top:4px;background:#F6F8FC;border:1px solid var(--border);border-radius:10px;padding:10px 12px">
-              <label class="cl-label">Rough notes <span style="font-weight:400;color:var(--slate)">— optional. Paste what happened and what you discussed; AI fills in every section below for you to review.</span></label>
-              <textarea id="clBfNotes" class="cl-input" rows="4" placeholder="e.g. Devi booked Tom Wolfenden (Konstruct) 1 Oct with Smartsourcing. Didn't probe the API role, took 1-2 wk timeline at face value, reframed company size 3 to 5-10. Partner disputed, tagged unqualified, SUR 85% to 80%. Good: rebuttal on email request, asked open question on roles..."></textarea>
+              <label class="cl-label">Rough notes or Fireflies transcript <span style="font-weight:400;color:var(--slate)">— optional. Paste your notes, or the full transcript of the coaching session from Fireflies (you can add your own notes above it). AI fills in every section below for you to review.</span></label>
+              <textarea id="clBfNotes" class="cl-input" rows="5" placeholder="e.g. Devi booked Tom Wolfenden (Konstruct) 1 Oct with Smartsourcing. Didn't probe the API role, took 1-2 wk timeline at face value, reframed company size 3 to 5-10. Partner disputed, tagged unqualified, SUR 85% to 80%. Good: rebuttal on email request, asked open question on roles..."></textarea>
               <div style="margin-top:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
                 <button id="clBtnGenerateBEEF" onclick="clGenerateBEEF()" style="background:#E91E8C;color:#fff;border:none;border-radius:8px;padding:9px 20px;font-size:13px;font-weight:700;cursor:pointer">Draft with AI ✨</button>
                 <span id="clBEEFStatus" style="font-size:11px"></span>
@@ -7255,14 +7255,14 @@
   // size, and occasionally it just hangs). Calling res.json() on that HTML throws
   // "Unexpected token '<'" and throws away whatever the user typed, so transient failures are
   // retried here and only a genuine outage is surfaced.
-  async function clAiRelay(payload, maxTries) {
+  async function clAiRelay(payload, maxTries, timeoutMs) {
     const tries = maxTries || 4;
     let lastReal = null;
     for (let attempt = 1; attempt <= tries; attempt++) {
       let transient = false;
       try {
         const ctl = new AbortController();
-        const timer = setTimeout(() => ctl.abort(), 60000);
+        const timer = setTimeout(() => ctl.abort(), timeoutMs || 60000);
         let res, text;
         try {
           res = await fetch(AI_COACH_URL, {
@@ -8490,11 +8490,17 @@ Return ONLY valid JSON (no markdown, no commentary) with this exact shape:
   // BEEF: rough notes -> every section, filled into the form for the coach to review.
   async function clGenerateBEEF() {
     const notes = ($('clBfNotes').value || '').trim();
-    if (!notes) { alert('Type or paste your notes first.'); return; }
+    if (!notes) { alert('Type or paste your notes or the Fireflies transcript first.'); return; }
+    if (notes.length > 200000) { alert('That transcript is very long. Paste only the coaching session (under about 200,000 characters).'); return; }
+    // A pasted Fireflies transcript is long and conversational; the stronger model pulls the
+    // coaching points out of it more reliably. Short notes stay on the fast model.
+    const isTranscript = notes.length > 4000 || /^\s*\S.{0,40}\s(\d{1,2}:)?\d{1,2}:\d{2}\b/m.test(notes);
+    const coachName = ($('clBfCoach') && $('clBfCoach').value) || 'the coach';
     const name = $('clTmName').value.trim();
     const first = (name.match(/[“"]([^”"]+)[”"]/) || [])[1] || name.split(/\s+/)[0] || 'the SDR';
     const btn = $('clBtnGenerateBEEF'), st = $('clBEEFStatus');
-    btn.disabled = true; btn.textContent = 'Drafting…'; st.textContent = '';
+    btn.disabled = true; btn.textContent = 'Drafting…'; st.style.color = 'var(--slate)';
+    st.textContent = isTranscript ? 'Reading the transcript, this can take up to a minute…' : '';
     const prompt = `You are writing a formal BEEF coaching log (Behavior, Example, Effect, Future) for ${first}, an outbound SDR (Client Success Executive) at Outsource Accelerator, an offshore staffing marketplace. SDRs qualify leads by phone and book discovery calls (DCs) between the lead and partner BPOs. Qualification checks: full-time role, hiring within 1 to 2 months, open to offshore, decision maker, company size.
 
 RULES:
@@ -8504,7 +8510,9 @@ RULES:
 - "DC" means Discovery Call.
 - Put any lead quotes from the notes in double quotes.
 
-COACH'S NOTES:
+INPUT FORMAT: ${isTranscript ? `This is a transcript of the coaching session (likely exported from Fireflies, with speaker names and timestamps), possibly with the coach's own notes added. The coach is ${coachName} and the SDR is ${first}; other speakers may be team leads or QA. Read the whole conversation and use only what was actually said: the call or lead being reviewed, what ${first} did, the result, what ${first} acknowledged during the session (you may write "During the session, ${first} acknowledged..."), and the action plans agreed. Ignore greetings, small talk, audio checks and filler. Do not quote the coach; quote the lead only where the transcript reads the lead's words aloud.` : `These are the coach's rough notes.`}
+
+INPUT:
 ${notes}
 
 Return ONLY valid JSON (no markdown):
@@ -8522,8 +8530,9 @@ Return ONLY valid JSON (no markdown):
 }
 Give 2 to 4 strengths only if the notes support them, 2 to 4 example points, and 2 or 3 action plans with 1 to 3 steps each.`;
     try {
-      const data = await clAiRelay({ model: 'claude-haiku-4-5-20251001', max_tokens: 2500,
-                                     messages: [{ role: 'user', content: prompt }] });
+      const data = await clAiRelay({ model: isTranscript ? 'claude-sonnet-4-6' : 'claude-haiku-4-5-20251001', max_tokens: 3000,
+                                     messages: [{ role: 'user', content: prompt }] },
+                                   isTranscript ? 2 : undefined, isTranscript ? 120000 : undefined);
       const g = clParseJson(clAiText(data).trim());
       const L = x => Array.isArray(x) ? x : (x ? [x] : []);
       const set = (id, val) => { if ($(id)) $(id).value = clDeDash(val || ''); };
