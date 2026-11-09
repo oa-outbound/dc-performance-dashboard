@@ -1154,7 +1154,15 @@
 
           <!-- BEEF coaching fields (Behavior, Example, Effect, Future) -->
           <div id="clBEEFFields" style="display:none">
-            <div class="cl-field" style="margin-top:4px">
+            <div class="cl-field" style="margin-top:4px;background:#F6F8FC;border:1px solid var(--border);border-radius:10px;padding:10px 12px">
+              <label class="cl-label">Rough notes <span style="font-weight:400;color:var(--slate)">— optional. Paste what happened and what you discussed; AI fills in every section below for you to review.</span></label>
+              <textarea id="clBfNotes" class="cl-input" rows="4" placeholder="e.g. Devi booked Tom Wolfenden (Konstruct) 1 Oct with Smartsourcing. Didn't probe the API role, took 1-2 wk timeline at face value, reframed company size 3 to 5-10. Partner disputed, tagged unqualified, SUR 85% to 80%. Good: rebuttal on email request, asked open question on roles..."></textarea>
+              <div style="margin-top:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                <button id="clBtnGenerateBEEF" onclick="clGenerateBEEF()" style="background:#E91E8C;color:#fff;border:none;border-radius:8px;padding:9px 20px;font-size:13px;font-weight:700;cursor:pointer">Draft with AI ✨</button>
+                <span id="clBEEFStatus" style="font-size:11px"></span>
+              </div>
+            </div>
+            <div class="cl-field">
               <label class="cl-label">Topic <span style="font-weight:400;color:var(--slate)">— shown under the title, e.g. Lead Dispute Review: Tom Wolfenden (Konstruct)</span></label>
               <input id="clBfTopic" class="cl-input" oninput="clRender()" placeholder="e.g. Lead Dispute Review: Tom Wolfenden (Konstruct)">
             </div>
@@ -1326,6 +1334,7 @@
               <span style="font-size:13px;font-weight:700;color:#fff">Email preview</span>
               <div style="display:flex;gap:6px">
                 <button onclick="clCopySubject()" class="cl-copy-btn" style="background:transparent;color:#C7D4EC;border-color:rgba(255,255,255,0.3)">Copy subject</button>
+                <button onclick="clDownloadPdf()" id="clPdfBtn" class="cl-copy-btn" style="background:#fff;color:#0C1F42;border-color:#fff">Download PDF</button>
                 <button onclick="clCopyEmail()" id="clCopyBtn" class="cl-copy-btn" style="background:#D6006D;color:#fff;border-color:#D6006D">Copy email</button>
               </div>
             </div>
@@ -1336,7 +1345,7 @@
             <div id="clEmailPreview" style="padding:14px;background:#fff;overflow:auto;max-height:70vh"></div>
           </div>
           <div style="margin-top:10px;background:#EEF3FB;border:1px solid #C9D8F0;border-radius:10px;padding:10px 14px;font-size:11px;color:#142E5C">
-            <b style="color:#D6006D">Copy email</b> copies the full design — paste straight into Gmail and the formatting carries over. Check each TM's prior record so the discipline level matches their history.
+            <b style="color:#0C1F42">Download PDF</b> saves the signed-copy version (choose <i>Save as PDF</i> in the print window) for the SDR and team lead to e-sign. <b style="color:#D6006D">Copy email</b> copies the full design — paste straight into Gmail and the formatting carries over. Check each TM's prior record so the discipline level matches their history.
           </div>
         </div>
 
@@ -8374,14 +8383,17 @@ Return ONLY valid JSON (no markdown, no commentary) with this exact shape:
 
     const note = o.note ? gap(8) + `<tr><td colspan="4" style="${F}background:${D.soft};border-left:4px solid ${D.navy};padding:8px 10px;font-size:11px;line-height:1.5;color:${D.ink}"><b style="color:${D.navy}">Additional note:</b> ${esc(o.note)}</td></tr>` : '';
 
-    const sign = (name, title) => `<td style="${F}width:50%;vertical-align:bottom;padding:28px 10px 0">
+    const sign = (name, title) => `<td style="${F}width:50%;vertical-align:bottom;padding:44px 10px 0">
         <div style="border-top:1.5px solid #111;padding-top:4px;text-align:center;font-size:11px;color:${D.ink}"><b>${esc(name)}</b><br>${esc(title)}</div></td>`;
-    const ack = gap(8) + bar(nextSec("EMPLOYEE'S COMMENTS / ACKNOWLEDGEMENT")) + `
-      <tr><td colspan="4" style="border:1px solid ${D.line};height:34px">&nbsp;</td></tr>
-      <tr><td colspan="4" style="${F}padding:8px 0 0;font-size:11px;font-style:italic;color:${D.ink}">Acknowledged by:</td></tr>
-      <tr><td colspan="4" style="padding:0"><table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
-        ${sign(o.rep.name || '[Name]', o.rep.position || '')}${sign(o.signer.name || '[Coach]', o.signer.title || '')}
-      </tr></table></td></tr>`;
+    // One block, so a printed copy never splits the signature lines from the section above them.
+    const ackTitle = nextSec("EMPLOYEE'S COMMENTS / ACKNOWLEDGEMENT");
+    const ack = gap(8) + `<tr><td colspan="4" style="padding:0"><table class="cl-ack" width="100%" cellpadding="0" cellspacing="0" border="0" style="page-break-inside:avoid;break-inside:avoid">
+      <tr><td colspan="2" style="${F}background:${D.navy};color:#fff;font-size:11px;font-weight:700;letter-spacing:.6px;padding:6px 10px">${ackTitle}</td></tr>
+      <tr><td colspan="2" style="border:1px solid ${D.line};height:34px">&nbsp;</td></tr>
+      <tr><td colspan="2" style="${F}padding:8px 0 0;font-size:11px;font-style:italic;color:${D.ink}">Acknowledged by:</td></tr>
+      <tr>${sign(o.rep.name || '[Name]', o.rep.position || '')}${sign(o.signer.name || '[Coach]', o.signer.title || '')}</tr>
+      <tr><td colspan="2" style="border-top:1px solid ${D.line};padding:8px 0 0;${F}font-size:9px;line-height:1.6;color:${D.ink};text-align:center">Confidential Property of Outsource Accelerator &nbsp;||&nbsp; This document and its contents shall not be disclosed, reproduced, or distributed without prior written consent from the Company.<br><span style="color:${D.mute}">Outsource Accelerator, Unit 4301 43F, One Corporate Center, Julia Vargas Corner Meralco Ave., Ortigas Center, Pasig City, Philippines 1605</span></td></tr>
+    </table></td></tr>`;
 
     return `<table cellpadding="0" cellspacing="0" border="0" width="100%" style="${F}max-width:960px;background:#fff;color:${D.ink}">
   <tr>
@@ -8397,7 +8409,6 @@ Return ONLY valid JSON (no markdown, no commentary) with this exact shape:
   ${discussion}
   ${note}
   ${ack}
-  <tr><td colspan="4" style="border-top:1px solid ${D.line};padding:8px 0 0;${F}font-size:9px;line-height:1.6;color:${D.ink};text-align:center">Confidential Property of Outsource Accelerator &nbsp;||&nbsp; This document and its contents shall not be disclosed, reproduced, or distributed without prior written consent from the Company.<br><span style="color:${D.mute}">Outsource Accelerator, Unit 4301 43F, One Corporate Center, Julia Vargas Corner Meralco Ave., Ortigas Center, Pasig City, Philippines 1605</span></td></tr>
 </table>`;
   }
 
@@ -8469,6 +8480,107 @@ Return ONLY valid JSON (no markdown, no commentary) with this exact shape:
     const label = new Date(ym + '-01T00:00:00').toLocaleDateString('en-US', { month: 'long' });
     const txt = `${label} DC outcomes (by meeting date, to ${clFmtDate(today < ref ? today : ref)}):\nTotal DCs: ${n('total_dcs')}\n• Both Attended: ${n('both_attended')}\n• Lead Attended: ${n('lead_attended')}\n• BPO Attended: ${n('bpo_attended')}\n• Canceled: ${n('canceled_by_lead') + n('canceled_by_partner') + n('canceled_unattributed')}\n• No Show: ${n('no_show')}\n• Still scheduled: ${n('scheduled') + n('rescheduled')}\nShow-up rate: ${held > 0 ? Math.round(showed / held * 100) + '% (' + showed + ' of ' + held + ' held)' : 'n/a'}`;
     const el = $('clWkReality'); el.value = el.value.trim() ? txt + '\n\n' + el.value.trim() : txt;
+  }
+
+  // BEEF: rough notes -> every section, filled into the form for the coach to review.
+  async function clGenerateBEEF() {
+    const notes = ($('clBfNotes').value || '').trim();
+    if (!notes) { alert('Type or paste your notes first.'); return; }
+    const name = $('clTmName').value.trim();
+    const first = (name.match(/[“"]([^”"]+)[”"]/) || [])[1] || name.split(/\s+/)[0] || 'the SDR';
+    const btn = $('clBtnGenerateBEEF'), st = $('clBEEFStatus');
+    btn.disabled = true; btn.textContent = 'Drafting…'; st.textContent = '';
+    const prompt = `You are writing a formal BEEF coaching log (Behavior, Example, Effect, Future) for ${first}, an outbound SDR (Client Success Executive) at Outsource Accelerator, an offshore staffing marketplace. SDRs qualify leads by phone and book discovery calls (DCs) between the lead and partner BPOs. Qualification checks: full-time role, hiring within 1 to 2 months, open to offshore, decision maker, company size.
+
+RULES:
+- Use only facts in the notes. Never invent names, dates, numbers, quotes or outcomes. Keep every figure exactly as written.
+- Refer to the SDR as ${first}. Plain, specific, professional, neutral tone. No praise the notes do not support.
+- Do NOT use em dashes or en dashes; use commas, periods, colons or parentheses.
+- "DC" means Discovery Call.
+- Put any lead quotes from the notes in double quotes.
+
+COACH'S NOTES:
+${notes}
+
+Return ONLY valid JSON (no markdown):
+{
+  "topic": "Short subject for the log, e.g. Lead Dispute Review: Tom Wolfenden (Konstruct). Empty string if unclear.",
+  "partner": "Partner and DC date if mentioned, e.g. Smartsourcing (discovery call on 13 October 2026), else empty string",
+  "strengths": [{"title": "2 to 5 word label", "detail": "One or two sentences on what ${first} did well"}],
+  "behaviorHeadline": "One short sentence naming the behavior to change",
+  "behaviorExplanation": "Two or three sentences of context",
+  "exampleIntro": "One or two sentences: when and what happened",
+  "examplePoints": [{"title": "Short label", "detail": "What exactly happened, with quotes where given"}],
+  "effect": ["Separate short paragraphs on the result for the lead, partner, team or ${first}'s numbers"],
+  "future": [{"title": "Action plan headline", "steps": ["Concrete step", "Concrete step"]}],
+  "note": "Optional additional note from the notes (e.g. what is not held against the SDR), else empty string"
+}
+Give 2 to 4 strengths only if the notes support them, 2 to 4 example points, and 2 or 3 action plans with 1 to 3 steps each.`;
+    try {
+      const data = await clAiRelay({ model: 'claude-haiku-4-5-20251001', max_tokens: 2500,
+                                     messages: [{ role: 'user', content: prompt }] });
+      const g = clParseJson(clAiText(data).trim());
+      const L = x => Array.isArray(x) ? x : (x ? [x] : []);
+      const set = (id, val) => { if ($(id)) $(id).value = clDeDash(val || ''); };
+      if (g.topic) set('clBfTopic', g.topic);
+      if (g.partner) set('clBfPartner', g.partner);
+      set('clBfStrengths', L(g.strengths).map(x => `${String(x.title || '').replace(/[.:]?$/, '.')} ${x.detail || ''}`.trim()).join('\n'));
+      set('clBfBehavior', [g.behaviorHeadline || '', '', g.behaviorExplanation || ''].join('\n').trim());
+      set('clBfExample', [g.exampleIntro || ''].concat(L(g.examplePoints).map((p, i) =>
+        `${i + 1}. ${String(p.title || '').replace(/[.:]?$/, '.')} ${p.detail || ''}`)).filter(Boolean).join('\n\n'));
+      set('clBfEffect', L(g.effect).join('\n\n'));
+      set('clBfFuture', L(g.future).map((f, i) =>
+        `${i + 1}. ${String(f.title || '').replace(/[.:]?$/, '.')}\n` + L(f.steps).map(x => '- ' + x).join('\n')).join('\n\n'));
+      if (g.note) set('clBfNote', g.note);
+      st.style.color = '#0A7A0A'; st.textContent = '✓ Drafted. Review each section before sending.';
+      clRender();
+    } catch (err) {
+      st.style.color = '#C00'; st.textContent = 'Error: ' + err.message;
+    } finally {
+      btn.disabled = false; btn.textContent = 'Draft with AI ✨';
+    }
+  }
+
+  // PDF copy for e-signature: opens the log in a print window sized like the formal log
+  // (US Letter, landscape) with a running footer, so "Save as PDF" gives the signable file.
+  function clDownloadPdf() {
+    const html = window._clEmailHtml;
+    if (!html) { alert('Generate or fill in the coaching log first.'); return; }
+    const name = $('clTmName').value.trim() || 'Team member';
+    const iso = $('clConvoDate').value || localIso(new Date());
+    const d = new Date(iso + 'T00:00:00');
+    const shortDate = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const longDate = d.getDate() + ' ' + d.toLocaleDateString('en-US', { month: 'long' }) + ' ' + d.getFullYear();
+    const parts = name.split(/\s+/), last = parts.length > 1 ? parts.pop() : '', firstPart = parts.join(' ');
+    const fileTitle = `Coaching Log - ${last ? last + ', ' + firstPart : name} - ${shortDate}`;
+    const footer = `Coaching Log | ${name} | ${longDate}`.replace(/"/g, '\\"');
+    const w = window.open('', '_blank');
+    if (!w) { alert('Your browser blocked the PDF window. Allow pop-ups for this site and try again.'); return; }
+    w.document.open();
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(fileTitle)}</title>
+<style>
+  @page { size: letter landscape; margin: 0.4in 0.45in 0.5in;
+    @bottom-left { content: "${footer}"; font: 8pt Helvetica, Arial, sans-serif; color: #444; }
+    @bottom-right { content: "Page " counter(page) " of " counter(pages); font: 8pt Helvetica, Arial, sans-serif; color: #444; } }
+  html, body { margin: 0; background: #fff; }
+  @media print { body { zoom: 0.84; } body > table { max-width: none !important; width: 100% !important; } }
+  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; font-family: Helvetica, Arial, sans-serif; }
+  table { page-break-inside: auto; } tr, img { page-break-inside: avoid; }
+  .bar { padding: 10px 14px; background: #0C1F42; color: #fff; font: 13px Helvetica, Arial, sans-serif; }
+  @media print { .bar { display: none; } }
+</style></head><body>
+<div class="bar">Choose <b>Save as PDF</b> as the destination, then Save. The file is named for you.</div>
+${html}
+<script>
+  (function () {
+    var imgs = Array.prototype.slice.call(document.images), left = imgs.length;
+    function go() { setTimeout(function () { window.focus(); window.print(); }, 200); }
+    if (!left) return go();
+    imgs.forEach(function (im) { if (im.complete) { if (--left === 0) go(); } else { im.onload = im.onerror = function () { if (--left === 0) go(); }; } });
+  })();
+<\/script></body></html>`);
+    w.document.close();
+    clLogCoaching();   // a PDF issued counts as coaching delivered, same as Copy email
   }
 
   function clRender() {
