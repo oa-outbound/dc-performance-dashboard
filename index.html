@@ -1001,7 +1001,8 @@
 
           <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
             <button id="clModeQuick" class="cl-chip" onclick="clSetMode('quick')">⚡ Quick (one-line → AI)</button>
-            <button id="clModeWeekly" class="cl-chip on-navy" onclick="clSetMode('weekly')">Weekly Coaching</button>
+            <button id="clModeWeekly" class="cl-chip on-navy" onclick="clSetMode('weekly')">Weekly Coaching (GROW)</button>
+            <button id="clModeBEEF" class="cl-chip" onclick="clSetMode('beef')">BEEF Coaching</button>
             <button id="clModeViolation" class="cl-chip" onclick="clSetMode('violation')">Post-Booking Cadence</button>
             <button id="clModeSBI" class="cl-chip" onclick="clSetMode('sbi')">General Performance</button>
             <button id="clModePIP" class="cl-chip" onclick="clSetMode('pip')">Improvement Plan (PIP)</button>
@@ -1114,29 +1115,30 @@
               <textarea id="clWkGoal" class="cl-input" rows="2" placeholder="e.g. Book 3 DCs this week and complete the full cadence for each one."></textarea>
             </div>
             <div class="cl-field">
-              <label class="cl-label">Reality <span style="font-weight:400;color:var(--slate)">— what is the current situation?</span></label>
+              <label class="cl-label">Reality <span style="font-weight:400;color:var(--slate)">— what happened? include the numbers</span>
+                <button type="button" onclick="clInsertDcStats()" class="cl-chip" style="margin-left:6px;padding:2px 8px;font-size:10.5px">+ Insert DC stats</button></label>
               <textarea id="clWkReality" class="cl-input" rows="2" placeholder="e.g. Averaging 1.5 DCs/day. Cadence steps are being skipped under pressure."></textarea>
             </div>
             <div class="cl-field">
-              <label class="cl-label">Options <span style="font-weight:400;color:var(--slate)">— what could they do? (one per line)</span></label>
+              <label class="cl-label">Opportunity <span style="font-weight:400;color:var(--slate)">— what could have been done differently? (one per line)</span></label>
               <textarea id="clWkOptions" class="cl-input" rows="3" placeholder="e.g. Schedule-send reminder emails right after booking&#10;Use the cadence checklist before closing HubSpot"></textarea>
             </div>
             <div class="cl-field">
-              <label class="cl-label">Will <span style="font-weight:400;color:var(--slate)">— what will they commit to?</span></label>
+              <label class="cl-label">Way Forward <span style="font-weight:400;color:var(--slate)">— action plans the SDR commits to</span></label>
               <textarea id="clWkWill" class="cl-input" rows="2" placeholder="e.g. I will complete all 6 cadence steps for every booking and check off the list before closing HubSpot."></textarea>
             </div>
             <div style="display:flex;gap:12px">
               <div class="cl-field" style="flex:1">
                 <label class="cl-label">Coach name</label>
-                <select id="clWkCoachName" class="cl-input">
-                  <option>Vincent Gadier</option>
+                <select id="clWkCoachName" class="cl-input" onchange="clRender()">
+                  <option selected>Rochelle Jan Valdez</option>
                   <option>Jumar Vere</option>
-                  <option>Alvin Bayhon</option>
                   <option>Angelica Tanate</option>
                   <option>Jonathan Jabonete</option>
+                  <option>Aly Limayo</option>
+                  <option>Vincent Gadier</option>
+                  <option>Alvin Bayhon</option>
                   <option>Diana Vosotros</option>
-                  <option>Alvin Melo</option>
-                  <option selected>Ritch Joy Manipol</option>
                 </select>
               </div>
 <div class="cl-field" style="flex:1">
@@ -1150,6 +1152,65 @@
             <div id="clGenerateStatus" style="font-size:11px;margin-top:6px;min-height:16px"></div>
           </div>
 
+          <!-- BEEF coaching fields (Behavior, Example, Effect, Future) -->
+          <div id="clBEEFFields" style="display:none">
+            <div class="cl-field" style="margin-top:4px">
+              <label class="cl-label">Topic <span style="font-weight:400;color:var(--slate)">— shown under the title, e.g. Lead Dispute Review: Tom Wolfenden (Konstruct)</span></label>
+              <input id="clBfTopic" class="cl-input" oninput="clRender()" placeholder="e.g. Lead Dispute Review: Tom Wolfenden (Konstruct)">
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 14px">
+              <div class="cl-field">
+                <label class="cl-label">Position</label>
+                <input id="clBfPosition" class="cl-input" value="Client Success Executive" oninput="clRender()">
+              </div>
+              <div class="cl-field">
+                <label class="cl-label">Team lead <span style="font-weight:400;color:var(--slate)">— filled from the roster</span></label>
+                <input id="clBfTL" class="cl-input" oninput="clRender()">
+              </div>
+              <div class="cl-field">
+                <label class="cl-label">Coach</label>
+                <select id="clBfCoach" class="cl-input" onchange="clRender()">
+                  <option selected>Rochelle Jan Valdez</option>
+                  <option>Jumar Vere</option>
+                  <option>Angelica Tanate</option>
+                  <option>Jonathan Jabonete</option>
+                  <option>Aly Limayo</option>
+                  <option>Vincent Gadier</option>
+                  <option>Alvin Bayhon</option>
+                  <option>Diana Vosotros</option>
+                </select>
+              </div>
+              <div class="cl-field">
+                <label class="cl-label">Partner <span style="font-weight:400;color:var(--slate)">— optional</span></label>
+                <input id="clBfPartner" class="cl-input" oninput="clRender()" placeholder="e.g. Smartsourcing (discovery call on 13 October 2026)">
+              </div>
+            </div>
+            <div class="cl-field">
+              <label class="cl-label">I. Strengths <span style="font-weight:400;color:var(--slate)">— one per line, start with a short title: <i>Objection handling. When the lead asked…</i></span></label>
+              <textarea id="clBfStrengths" class="cl-input" rows="4" oninput="clRender()"></textarea>
+            </div>
+            <div class="cl-field">
+              <label class="cl-label">Behavior <span style="font-weight:400;color:var(--slate)">— first line is the headline, then a short explanation</span></label>
+              <textarea id="clBfBehavior" class="cl-input" rows="3" oninput="clRender()" placeholder="Insufficient probing during qualification.&#10;&#10;The qualifying answers were not explored enough to confirm the lead met our criteria."></textarea>
+            </div>
+            <div class="cl-field">
+              <label class="cl-label">Example <span style="font-weight:400;color:var(--slate)">— what happened; number points as <i>1. Title. detail</i></span></label>
+              <textarea id="clBfExample" class="cl-input" rows="5" oninput="clRender()"></textarea>
+            </div>
+            <div class="cl-field">
+              <label class="cl-label">Effect <span style="font-weight:400;color:var(--slate)">— the result for the lead, partner, team or the SDR's numbers</span></label>
+              <textarea id="clBfEffect" class="cl-input" rows="4" oninput="clRender()"></textarea>
+            </div>
+            <div class="cl-field">
+              <label class="cl-label">Future <span style="font-weight:400;color:var(--slate)">— action plans: <i>1. Plan.</i> then steps starting with <i>- </i></span></label>
+              <textarea id="clBfFuture" class="cl-input" rows="5" oninput="clRender()" placeholder="1. Probe the role and the hiring urgency before confirming the seat.&#10;- Ask what the person will do day to day.&#10;- Confirm active hiring when the timeline is short."></textarea>
+            </div>
+            <div class="cl-field">
+              <label class="cl-label">Additional note <span style="font-weight:400;color:var(--slate)">— optional</span></label>
+              <textarea id="clBfNote" class="cl-input" rows="2" oninput="clRender()"></textarea>
+            </div>
+          </div>
+
           <!-- General Performance Coaching (SBI) fields -->
           <div id="clSBIFields" style="display:none">
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;align-items:end">
@@ -1160,14 +1221,14 @@
               <div class="cl-field" style="margin-top:4px">
                 <label class="cl-label">From <span style="font-weight:400;color:var(--slate)">— who's sending this</span></label>
                 <select id="clSBICoach" class="cl-input" onchange="clRender()">
-                  <option>Vincent Gadier</option>
+                  <option selected>Rochelle Jan Valdez</option>
                   <option>Jumar Vere</option>
-                  <option>Alvin Bayhon</option>
                   <option>Angelica Tanate</option>
                   <option>Jonathan Jabonete</option>
+                  <option>Aly Limayo</option>
+                  <option>Vincent Gadier</option>
+                  <option>Alvin Bayhon</option>
                   <option>Diana Vosotros</option>
-                  <option>Alvin Melo</option>
-                  <option selected>Ritch Joy Manipol</option>
                 </select>
               </div>
             </div>
@@ -1515,7 +1576,9 @@
   // Expands each (date, SDR) feed row into one row per DC, in the same shape the masterfile
   // parser produces, so every page keeps working unchanged. The feed has no lead count, so
   // sp1 stays blank and lead figures read as zero in feed mode.
+  let _feedRaw = [];
   function parseFeedCSV(text) {
+    _feedRaw = [];
     const lines = splitCsvRows(text.trim());
     if (lines.length < 2) return [];
     const h = splitLine(lines[0]).map(x => x.trim().toLowerCase());
@@ -1526,6 +1589,9 @@
       const c = splitLine(line);
       const date = (c[di] || '').trim(), sdr = (c[si] || '').trim();
       if (!date || !sdr || sdr === '(unassigned)') continue;
+      const raw = { date, sdr };
+      h.forEach((k, j) => { if (k !== 'date' && k !== 'sdr') raw[k] = parseInt(c[j], 10) || 0; });
+      _feedRaw.push(raw);   // per-bucket counts, used by the coaching log's "Insert DC stats"
       for (const [i, st] of cols) {
         const n = parseInt(c[i], 10) || 0;
         for (let j = 0; j < n; j++) out.push({ rawDate: date, agent: sdr, sp1: '', sp2: 'DC', sp1status: '', sp2status: st });
@@ -7229,6 +7295,7 @@
     let s;
     const m = _clState.mode;
     if (m === 'weekly')         s = v('clWkObs') || v('clWkGoal');
+    else if (m === 'beef')      s = v('clBfTopic') ? v('clBfTopic') + ': ' + (v('clBfBehavior').split('\n')[0] || '') : (v('clBfBehavior') || v('clBfExample'));
     else if (m === 'violation') s = _clState.useEdited ? _clState.behaviorEdited : v('clBehavior');
     else if (m === 'pip')       s = v('clPIPGap');
     else                        s = v('clSBISituation') || v('clSBIBehavior');  // quick / sbi
@@ -7562,11 +7629,13 @@ ${notes}`;
     const tv = ($('clCoachTypeSel') && $('clCoachTypeSel').value) || 'performance';
     const type = ({ weekly: 'Weekly', performance: 'Performance', violation: 'Violation', pip: 'PIP' }[tv]) || 'Performance';
     const topic = window._clQuickTopic ||
-      ({ weekly:'Weekly Coaching', violation:'Post-Booking Cadence', sbi:'General Performance', pip:'PIP', quick:'Quick' }[_clState.mode] || 'Coaching');
-    const coach = ((_clState.mode === 'weekly' ? ($('clWkCoachName') && $('clWkCoachName').value) : ($('clSBICoach') && $('clSBICoach').value))
+      ({ weekly:'Weekly Coaching', beef:'BEEF Coaching', violation:'Post-Booking Cadence', sbi:'General Performance', pip:'PIP', quick:'Quick' }[_clState.mode] || 'Coaching');
+    const coach = ((_clState.mode === 'weekly' ? ($('clWkCoachName') && $('clWkCoachName').value)
+                    : _clState.mode === 'beef' ? ($('clBfCoach') && $('clBfCoach').value)
+                    : ($('clSBICoach') && $('clSBICoach').value))
                    || ($('clSBICoach') && $('clSBICoach').value)
                    || ($('clWkCoachName') && $('clWkCoachName').value)
-                   || 'Ritch Joy Manipol').trim();
+                   || 'Rochelle Jan Valdez').trim();
     const summary = clSessionSummary();
     const entry = { timestamp: new Date().toISOString(), date, weekof: weekOf, squad, rep, level, topic, coach, summary, type };
     _coachLogs.push(entry);  // optimistic — shows immediately in the tracker
@@ -7831,17 +7900,19 @@ ${notes}`;
     $('clQuickFields').style.display     = mode === 'quick'     ? '' : 'none';
     $('clViolationFields').style.display = mode === 'violation' ? '' : 'none';
     $('clWeeklyFields').style.display    = mode === 'weekly'    ? '' : 'none';
+    $('clBEEFFields').style.display      = mode === 'beef'      ? '' : 'none';
     $('clSBIFields').style.display       = mode === 'sbi'       ? '' : 'none';
     $('clPIPFields').style.display       = mode === 'pip'       ? '' : 'none';
     $('clModeQuick').classList.toggle('on-navy',     mode === 'quick');
     $('clModeViolation').classList.toggle('on-navy', mode === 'violation');
     $('clModeWeekly').classList.toggle('on-navy',    mode === 'weekly');
+    $('clModeBEEF').classList.toggle('on-navy',      mode === 'beef');
     $('clModeSBI').classList.toggle('on-navy',       mode === 'sbi');
     $('clModePIP').classList.toggle('on-navy',       mode === 'pip');
     if ($('clCoachTypeSel')) $('clCoachTypeSel').value = ({ weekly:'weekly', violation:'violation', pip:'pip', sbi:'performance', quick:'performance' }[mode] || 'performance');
-    const subtitles = { quick:'Quick Coaching · one-line → AI draft', weekly:'Weekly 1-on-1 Coaching Log', violation:'Post-Booking Cadence · 6-Step Standard', sbi:'General Performance Coaching · SBI Model', pip:'Performance Improvement Plan' };
+    const subtitles = { quick:'Quick Coaching · one-line → AI draft', weekly:'Weekly 1-on-1 Coaching Log · GROW', beef:'Coaching Log · Behavior, Example, Effect, Future', violation:'Post-Booking Cadence · 6-Step Standard', sbi:'General Performance Coaching · SBI Model', pip:'Performance Improvement Plan' };
     $('clModeSubtitle').textContent = subtitles[mode] || '';
-    $('clConvoDateLabel').textContent = mode === 'weekly' ? 'Session date' : 'Conversation date';
+    $('clConvoDateLabel').textContent = (mode === 'weekly' || mode === 'beef') ? 'Session date' : 'Conversation date';
     document.querySelectorAll('.cl-violation-cell').forEach(el => {
       el.style.display = mode === 'violation' ? '' : 'none';
     });
@@ -7852,174 +7923,42 @@ ${notes}`;
     const tmName      = $('clTmName').value.trim();
     const sessionDate = $('clConvoDate').value;
     const nextDate    = $('clWkNextDate').value;
-    const coachName   = ($('clWkCoachName') && $('clWkCoachName').value.trim()) || 'Your Coach';
-    const NAVY = '#0D1F6F', MAG = '#E91E8C', INK = '#2C3E50';
-
-    const weekNum = (() => {
-      if (!sessionDate) return '';
-      const d = new Date(sessionDate + 'T00:00:00');
-      const day1 = new Date(d.getFullYear(), d.getMonth(), 1);
-      const dow = day1.getDay();
-      const daysToMon = dow === 0 ? 1 : dow === 1 ? 0 : 8 - dow;
-      const firstMon = new Date(d.getFullYear(), d.getMonth(), 1 + daysToMon);
-      if (d < firstMon) return 'W01';
-      const n = Math.floor((d - firstMon) / 86400000 / 7) + 1;
-      return 'W' + String(n).padStart(2, '0');
-    })();
-    const subject = clDeDash(`[COACHING-LOG] ${sessionDate || '[Date]'} | ${coachName} | ${tmName || '[Name]'} | ${weekNum || 'W##'}`);
-    $('clSubjectLine').textContent = subject;
-    window._clEmailSubject = subject;
-
+    const coachName   = ($('clWkCoachName') && $('clWkCoachName').value.trim()) || 'Rochelle Jan Valdez';
+    const subject = `Coaching Log | ${tmName || '[Name]'} | ${clFmtDate(sessionDate) || '[Date]'}`;
     const g = window._clGeneratedWeekly;
 
     if (!g) {
+      $('clSubjectLine').textContent = clDeDash(subject);
+      window._clEmailSubject = clDeDash(subject);
       $('clEmailPreview').innerHTML = `<div style="text-align:center;padding:60px 20px;font-family:sans-serif">
         <div style="font-size:40px;margin-bottom:14px">✨</div>
         <div style="font-size:15px;font-weight:600;color:#555;margin-bottom:8px">Fill in the GROW fields and click Generate</div>
-        <div style="font-size:12px;color:#aaa">AI will write the full coaching email for you</div>
+        <div style="font-size:12px;color:#aaa">AI writes the coaching log in the formal Goal, Reality, Opportunity, Way Forward layout</div>
       </div>`;
       window._clEmailHtml  = '';
       window._clEmailPlain = '';
       return;
     }
 
-    const secHdr = (label, bg) =>
-      `<div style="background:${bg};color:#fff;padding:10px 16px;border-radius:4px 4px 0 0;font-size:13px;font-weight:800;letter-spacing:.5px;text-transform:uppercase">${label}</div>`;
-
-    const bulletItems = (arr) => (arr && arr.length)
-      ? `<ul style="margin:0;padding-left:20px">${arr.map(l=>`<li style="margin-bottom:8px;font-size:14px;line-height:1.7;color:${INK}">${esc(l)}</li>`).join('')}</ul>`
-      : '';
-
-    const ratingColor = (r) => r==='CONSISTENT' ? '#0A7A0A' : r==='MISS' ? '#C00' : '#C97000';
-
-    const ratingsRows = (g.ratings||[]).map((r,i) => `
-      <tr style="background:${i%2===0?'#fff':'#f9f9f9'}">
-        <td style="padding:9px 10px;border:1px solid #ddd;font-size:13px;color:${INK}">${esc(r.skill||'')}</td>
-        <td style="padding:9px 10px;border:1px solid #ddd;font-size:13px;font-weight:700;color:${ratingColor(r.rating)}">${esc(r.rating||'')}</td>
-        <td style="padding:9px 10px;border:1px solid #ddd;font-size:13px;color:${INK}">${esc(r.notes||'')}</td>
-      </tr>`).join('');
-
-    const html = `<div style="font-family:'Calibri','Segoe UI',Arial,sans-serif;max-width:800px;background:#f5f5f5;padding:20px">
-<div style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.1)">
-
-  <!-- Header -->
-  <div style="background:${NAVY};padding:32px 40px;text-align:center">
-    <div style="font-size:30px;font-weight:bold;color:${MAG};margin-bottom:8px">${esc(tmName)||'[Name]'}</div>
-    <div style="font-size:13px;color:#E7F0F7">Date: ${clFmtDate(sessionDate)||'[Date]'} | Coach: ${esc(coachName)}</div>
-  </div>
-
-  <div style="padding:30px 40px">
-
-    <!-- PERFORMANCE RATING -->
-    ${ratingsRows ? `<div style="margin-bottom:28px">
-      ${secHdr('Performance Rating',NAVY)}
-      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;border:1px solid #ddd;border-top:none">
-        <tr>
-          <th style="background:#1a3080;color:#fff;padding:9px 10px;text-align:left;font-size:12px;font-weight:700;width:35%">Skill / Behavior</th>
-          <th style="background:#1a3080;color:#fff;padding:9px 10px;text-align:left;font-size:12px;font-weight:700;width:30%">Rating</th>
-          <th style="background:#1a3080;color:#fff;padding:9px 10px;text-align:left;font-size:12px;font-weight:700">Notes</th>
-        </tr>${ratingsRows}
-      </table>
-    </div>` : ''}
-
-    <!-- GOAL -->
-    ${(g.goalStatement||g.target) ? `<div style="margin-bottom:28px">
-      ${secHdr('Goal',MAG)}
-      <div style="background:#F5F2FF;border-left:4px solid ${MAG};border-right:1px solid #ddd;border-bottom:1px solid #ddd;padding:16px">
-        ${g.goalStatement ? `<p style="font-weight:bold;color:${NAVY};font-size:15px;margin:0 0 ${g.target?'6px':'0'}">${esc(g.goalStatement)}</p>` : ''}
-        ${g.target ? `<p style="font-style:italic;color:${NAVY};font-size:13px;margin:0">Target: ${esc(g.target)}</p>` : ''}
-      </div>
-    </div>` : ''}
-
-    <!-- WINS -->
-    ${g.wins && g.wins.length ? `<div style="margin-bottom:28px">
-      ${secHdr('Wins',NAVY)}
-      <div style="border:1px solid #ddd;border-top:none;padding:14px 16px">${bulletItems(g.wins)}</div>
-    </div>` : ''}
-
-    <!-- GAP & FOCUS -->
-    ${(g.gap||g.thisWeek) ? `<div style="margin-bottom:28px">
-      ${secHdr('Gap &amp; Focus',MAG)}
-      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;border:1px solid #ddd;border-top:none">
-        <tr>
-          ${g.gap ? `<td style="width:50%;padding:16px;border-right:1px solid #ddd;vertical-align:top">
-            <p style="font-weight:bold;color:${NAVY};font-size:13px;margin:0 0 6px">Gap:</p>
-            <p style="font-size:14px;line-height:1.6;margin:0;color:${INK}">${esc(g.gap)}</p>
-          </td>` : ''}
-          ${g.thisWeek ? `<td style="width:50%;padding:16px;vertical-align:top">
-            <p style="font-weight:bold;color:${NAVY};font-size:13px;margin:0 0 6px">This Week:</p>
-            <p style="font-size:14px;line-height:1.6;margin:0;color:${INK}">${esc(g.thisWeek)}</p>
-          </td>` : ''}
-        </tr>
-      </table>
-    </div>` : ''}
-
-    <!-- HOW TO EXECUTE -->
-    ${g.howToExecute && g.howToExecute.length ? `<div style="margin-bottom:28px">
-      ${secHdr('How to Execute',NAVY)}
-      <div style="border:1px solid #ddd;border-top:none;padding:14px 16px">${bulletItems(g.howToExecute)}</div>
-    </div>` : ''}
-
-    <!-- COMMITMENT & NEXT STEPS -->
-    ${(g.commitment||nextDate||g.nextSessionFocus) ? `<div style="margin-bottom:20px">
-      ${secHdr('Commitment &amp; Next Steps',MAG)}
-      <div style="border:1px solid #ddd;border-top:none;padding:14px 16px">
-        ${g.commitment ? `<ul style="margin:0 0 ${nextDate||g.nextSessionFocus?'12px':'0'};padding-left:20px"><li style="font-size:14px;line-height:1.7;color:${INK}">${esc(g.commitment)}</li></ul>` : ''}
-        ${(nextDate||g.nextSessionFocus) ? `<p style="margin:0;font-size:13px;color:${NAVY}"><strong>Next Session:</strong> ${nextDate?clFmtDate(nextDate):'TBD'}${g.nextSessionFocus?` &nbsp;|&nbsp; <strong>Focus:</strong> ${esc(g.nextSessionFocus)}`:''}</p>` : ''}
-      </div>
-    </div>` : ''}
-
-  </div>
-
-  <!-- Footer -->
-  <div style="background:${NAVY};color:#fff;padding:20px 40px;text-align:center">
-    <p style="font-size:13px;margin:0 0 10px">Please acknowledge receipt and confirm commitment.</p>
-    <p style="font-size:13px;margin:0">Best regards,<br><strong>${esc(coachName)}</strong></p>
-  </div>
-
-</div></div>`;
-
-    $('clEmailPreview').innerHTML = clDeDash(html);
-    window._clEmailHtml = clDeDash(html);
-    window._clEmailSubject = clDeDash(subject);
-    window._clEmailPlain = clDeDash(clBuildWeeklyPlain(g, { tmName, sessionDate, nextDate, coachName }));
-  }
-
-  function clBuildWeeklyPlain(g, meta) {
-    const L = [];
-    L.push(`Subject: ${window._clEmailSubject}`); L.push('');
-    L.push(meta.tmName || '[Name]');
-    L.push(`Date: ${clFmtDate(meta.sessionDate)||'[Date]'} | Coach: ${meta.coachName||'Your Coach'}`);
-    L.push('');
-    if (g.ratings && g.ratings.length) {
-      L.push('PERFORMANCE RATING:');
-      g.ratings.forEach(r => L.push(`  ${r.skill} — ${r.rating}${r.notes?' | '+r.notes:''}`));
-      L.push('');
-    }
-    if (g.goalStatement||g.target) {
-      L.push('GOAL:');
-      if (g.goalStatement) L.push(g.goalStatement);
-      if (g.target) L.push('Target: '+g.target);
-      L.push('');
-    }
-    if (g.wins && g.wins.length) { L.push('WINS:'); g.wins.forEach(w=>L.push('• '+w)); L.push(''); }
-    if (g.gap||g.thisWeek) {
-      L.push('GAP & FOCUS:');
-      if (g.gap) L.push('Gap: '+g.gap);
-      if (g.thisWeek) L.push('This Week: '+g.thisWeek);
-      L.push('');
-    }
-    if (g.howToExecute && g.howToExecute.length) { L.push('HOW TO EXECUTE:'); g.howToExecute.forEach(s=>L.push('• '+s)); L.push(''); }
-    if (g.commitment||meta.nextDate||g.nextSessionFocus) {
-      L.push('COMMITMENT & NEXT STEPS:');
-      if (g.commitment) L.push('• '+g.commitment);
-      let ns = 'Next Session: '+(meta.nextDate?clFmtDate(meta.nextDate):'TBD');
-      if (g.nextSessionFocus) ns += ' | Focus: '+g.nextSessionFocus;
-      L.push(ns);
-    }
-    L.push(''); L.push('Please acknowledge receipt and confirm commitment.');
-    L.push(''); L.push('Best regards,'); L.push(meta.coachName||'Your Coach');
-    return L.join('\n');
+    const asList = x => Array.isArray(x) ? x : String(x || '').split('\n').map(s => s.trim()).filter(Boolean);
+    const opp = asList(g.opportunity).map(x => '- ' + String(x).replace(/^[-•]\s*/, '')).join('\n');
+    const wf = (Array.isArray(g.wayForward) ? g.wayForward : []).map((w, i) =>
+      `${i + 1}. ${String(w.title || '').replace(/[.]?$/, '.')}\n` + asList(w.steps).map(st => '- ' + String(st).replace(/^[-•]\s*/, '')).join('\n')).join('\n\n');
+    const info = [['Name', esc(tmName) || '[Name]'], ['Date', clFmtDate(sessionDate) || '[Date]'],
+                  ['Position', 'Client Success Executive'], ['Team Lead', esc(clTeamLeadFor(tmName))],
+                  ['Coach', esc(coachName)]];
+    if (nextDate) info.push(['Next session', clFmtDate(nextDate)]);
+    const o = {
+      subtitle: 'Weekly Coaching (GROW)', info,
+      strengths: (Array.isArray(g.strengths) ? g.strengths : []).map(x => ({ title: String(x.title || '').replace(/[.:]?$/, '.'), detail: x.detail || '' })),
+      heads: ['Goal', 'Reality', 'Opportunity', 'Way Forward'], widths: ['18%', '30%', '24%', '28%'],
+      cols: [g.goal ? `<b>${esc(g.goal)}</b>` : '&nbsp;', clRich(g.reality) || '&nbsp;', clRich(opp) || '&nbsp;',
+             wf ? '<div style="margin:0 0 6px"><b>Action Plans:</b></div>' + clRich(wf) : '&nbsp;'],
+      note: g.note || '',
+      rep: { name: tmName, position: 'Client Success Executive' },
+      signer: { name: coachName, title: CL_COACH_TITLES[coachName] || 'Coach' }
+    };
+    clSetDocOutput(o, [g.goal || '', g.reality || '', opp, wf], subject);
   }
 
   async function clGenerateWeekly() {
@@ -8038,40 +7977,35 @@ ${notes}`;
     btn.disabled    = true;
     status.textContent = '';
 
-    const userPrompt = `You are a sales coaching assistant writing a weekly coaching log email for a BDR (Business Development Rep) at an offshore staffing company.
+    const repFirst = ($('clTmName').value.trim().split(/\s+/)[0]) || 'the SDR';
+    const userPrompt = `You are writing a formal weekly coaching log (GROW model) for ${repFirst}, an outbound SDR (Client Success Executive) at Outsource Accelerator, an offshore staffing marketplace. SDRs qualify leads by phone and book discovery calls with partner BPOs.
 
-IMPORTANT TERMINOLOGY: "DC" means Discovery Call (a booked call between the lead and the client). Never write "Decision Conversation" — always use "Discovery Call" or "DC".
+TERMINOLOGY: "DC" means Discovery Call. Never write "Decision Conversation".
+STYLE: plain, specific, professional. Refer to the SDR by first name (${repFirst}). Do NOT use em dashes or en dashes; use commas, periods, colons or parentheses. Never invent numbers, names or events that are not in the notes; keep every figure exactly as given.
 
-Based on the GROW coaching session notes below, generate structured content for each section of the coaching log. Be specific, professional, and actionable. Transform the raw notes into polished coaching language. Do NOT use em dashes or en dashes (— or –) anywhere; use commas, periods, colons, or parentheses instead.
+SESSION NOTES:
+Observation: ${obs||'(not provided)'}
+Goal: ${goal||'(not provided)'}
+Reality (what happened, with numbers): ${reality||'(not provided)'}
+Opportunity (what could have been done differently): ${options||'(not provided)'}
+Way Forward (what the SDR commits to): ${will||'(not provided)'}
 
-GROW SESSION NOTES:
-Observation (what you observed about this rep): ${obs||'(not provided)'}
-Goal (what the rep wants to achieve): ${goal||'(not provided)'}
-Reality (current situation/performance): ${reality||'(not provided)'}
-Options (what they could do): ${options||'(not provided)'}
-Will (what they commit to): ${will||'(not provided)'}
-
-Return ONLY valid JSON with this exact structure (no markdown, no explanation):
+Return ONLY valid JSON (no markdown) with this structure:
 {
-  "ratings": [
-    {"skill": "Skill or behavior name", "rating": "MISS or INCONSISTENT or CONSISTENT", "notes": "Brief context note"}
-  ],
-  "goalStatement": "Clear specific primary goal statement",
-  "target": "Specific timeframe and/or metric target",
-  "wins": ["Specific accomplishment 1", "Specific accomplishment 2"],
-  "gap": "What specifically needs improvement (1-2 sentences)",
-  "thisWeek": "The single most important execution focus this week",
-  "howToExecute": ["Concrete action step 1", "Concrete action step 2", "Concrete action step 3"],
-  "commitment": "The rep's specific commitment statement with measurable outcome",
-  "nextSessionFocus": "Skill or topic to review at next session"
+  "strengths": [{"title": "Short label, 2 to 4 words", "detail": "One or two sentences on what they did well, from the notes"}],
+  "goal": "One specific, measurable goal with a timeframe, e.g. To improve show-up rate from 51% to 60% in May.",
+  "reality": "What happened. Keep any DC outcome numbers as separate lines starting with '• '. Then one or two short paragraphs on the causes discussed.",
+  "opportunity": ["What could have been done differently (one item per entry)"],
+  "wayForward": [{"title": "Action plan headline", "steps": ["Concrete step", "Concrete step"]}],
+  "note": "Optional one-line additional note, or empty string"
 }
 
-Generate 2-4 rating rows from the observation. Wins should reflect positives from Reality or rep strengths. Keep each field concise and impactful.`;
+Give 2 to 4 strengths only if the notes support them (otherwise an empty array), 2 to 4 opportunity items, and 2 to 4 wayForward plans with 1 to 3 steps each.`;
 
     try {
       const data = await clAiRelay({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 1200,
+        max_tokens: 2000,
         messages: [{ role: 'user', content: userPrompt }]
       });
       const text = clAiText(data).trim();
@@ -8350,9 +8284,197 @@ Return ONLY valid JSON (no markdown, no commentary) with this exact shape:
     window._clEmailPlain = clDeDash(plain);
   }
 
+  // ══════════════════════════════════════════════════════════════════
+  //  Coaching Log document (BEEF + GROW), styled after the formal log
+  //  Rochelle issued to Devi on 19 Oct 2026: OA letterhead, COACHING LOG
+  //  title, info grid, navy section bars, a four-column discussion table,
+  //  acknowledgement lines and the confidentiality footer. Tables and
+  //  inline styles only, so it survives a paste into Gmail.
+  // ══════════════════════════════════════════════════════════════════
+  const CL_DOC = { navy:'#2F4E82', ink:'#1F2937', soft:'#F1F4F9', line:'#D2D4D8', mute:'#8E9FBA' };
+  const CL_LOGO_URL = 'https://oa-outbound.github.io/dc-performance-dashboard/assets/oa-logo.png';
+  const CL_COACH_TITLES = {
+    'Rochelle Jan Valdez':'Operations Manager', 'Jumar Vere':'Team Lead', 'Angelica Tanate':'Team Lead',
+    'Jonathan Jabonete':'Team Lead', 'Aly Limayo':'QA and Trainer',
+    'Vincent Gadier':'Subject Matter Expert', 'Alvin Bayhon':'Subject Matter Expert', 'Diana Vosotros':'Subject Matter Expert'
+  };
+  const CL_TEAM_TL = { dijumhon:'Jumar Vere', meloace:'Angelica Tanate', ev:'Jonathan Jabonete' };
+
+  // Team lead for a rep, from the roster (TEAMS).
+  function clTeamLeadFor(name) {
+    const id = name ? resolveAgent(name) : null; if (!id) return '';
+    const t = TEAMS.find(tm => tm.members.some(m => m.id === id));
+    return t ? (CL_TEAM_TL[t.id] || '') : '';
+  }
+
+  // Plain text a coach types -> the log's formatting. "1. Title. rest" bolds the title,
+  // "- step" indents a step, a line ending in ":" is a bold label, "quoted speech" is italic,
+  // and a blank line starts a new paragraph.
+  function clRich(text) {
+    const D = CL_DOC;
+    const it = s => s.replace(/(&quot;|“)([^"“”]{2,}?)(&quot;|”)/g, '<i>$1$2$3</i>');
+    const blocks = String(text || '').replace(/\r/g, '').split(/\n\s*\n/);
+    return blocks.map(b => {
+      const lines = b.split('\n').map(l => l.trim()).filter(Boolean);
+      return '<div style="margin:0 0 8px">' + lines.map(l => {
+        let m;
+        if ((m = l.match(/^(\d+\.)\s+(.{2,90}?[.?!:])(\s+.*)?$/)))
+          return `<div style="margin:6px 0 2px"><b>${esc(m[1])} ${it(esc(m[2]))}</b>${it(esc(m[3] || ''))}</div>`;
+        if ((m = l.match(/^[-•]\s+(.*)$/)))
+          return `<div style="margin:2px 0 2px 10px">- ${it(esc(m[1]))}</div>`;
+        if (/:$/.test(l) && l.length < 60) return `<div style="margin:2px 0"><b>${esc(l)}</b></div>`;
+        return `<div>${it(esc(l))}</div>`;
+      }).join('') + '</div>';
+    }).join('');
+  }
+
+  // Strengths: one per line, "Title. detail".
+  function clStrengthItems(text) {
+    return String(text || '').split('\n').map(l => l.trim()).filter(Boolean).map(l => {
+      l = l.replace(/^\d+\.\s*/, '');
+      const m = l.match(/^(.{2,60}?[.:])\s+(.*)$/);
+      return m ? { title: m[1].replace(/:$/, '.'), detail: m[2] } : { title: '', detail: l };
+    });
+  }
+
+  function clDocument(o) {
+    const D = CL_DOC, F = "font-family:Helvetica,Arial,sans-serif;";
+    const bar = t => `<tr><td colspan="4" style="${F}background:${D.navy};color:#fff;font-size:11px;font-weight:700;letter-spacing:.6px;padding:6px 10px">${t}</td></tr>`;
+    const gap = h => `<tr><td colspan="4" style="height:${h}px;line-height:${h}px;font-size:0">&nbsp;</td></tr>`;
+    const lbl = t => `<td style="${F}width:12%;padding:2px 0;font-size:11px;font-weight:700;color:${D.navy};vertical-align:top">${t}</td>`;
+    const val = t => `<td style="${F}width:38%;padding:2px 8px 2px 0;font-size:11px;color:${D.ink};vertical-align:top">${t}</td>`;
+    let sec = 0; const roman = ['I','II','III','IV','V'];
+    const nextSec = t => roman[sec++] + '. ' + t;
+
+    const info = [];
+    for (let i = 0; i < o.info.length; i += 2) {
+      const a = o.info[i], b = o.info[i + 1];
+      info.push(`<tr>${lbl(a[0])}${val(a[1])}${b ? lbl(b[0]) + val(b[1]) : '<td></td><td></td>'}</tr>`);
+    }
+
+    let strengths = '';
+    if (o.strengths && o.strengths.length) {
+      const items = o.strengths.map((s, i) =>
+        `<div style="${F}font-size:11px;line-height:1.5;color:${D.ink};margin:0 0 8px"><b style="color:${D.navy}">${i + 1}. ${esc(s.title)}</b> ${esc(s.detail).replace(/(&quot;|“)([^"“”]{2,}?)(&quot;|”)/g, '<i>$1$2$3</i>')}</div>`);
+      const half = Math.ceil(items.length / 2);
+      strengths = bar(nextSec('STRENGTHS')) + `<tr><td colspan="4" style="padding:8px 10px 0">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+          <td style="width:50%;vertical-align:top;padding-right:14px">${items.slice(0, half).join('')}</td>
+          <td style="width:50%;vertical-align:top">${items.slice(half).join('')}</td>
+        </tr></table></td></tr>` + gap(6);
+    }
+
+    const th = (t, w) => `<th style="${F}width:${w};background:${D.navy};color:#fff;font-size:11px;font-weight:700;padding:7px 8px;border:1px solid ${D.line};text-align:center">${t}</th>`;
+    const tdc = h => `<td style="${F}font-size:11px;line-height:1.5;color:${D.ink};padding:8px;border:1px solid ${D.line};vertical-align:top">${h}</td>`;
+    const discussion = bar(nextSec('COACHING DISCUSSION')) + `<tr><td colspan="4" style="padding:0">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse">
+        <tr>${o.heads.map((h, i) => th(h, o.widths[i])).join('')}</tr>
+        <tr>${o.cols.map(tdc).join('')}</tr>
+      </table></td></tr>`;
+
+    const note = o.note ? gap(8) + `<tr><td colspan="4" style="${F}background:${D.soft};border-left:4px solid ${D.navy};padding:8px 10px;font-size:11px;line-height:1.5;color:${D.ink}"><b style="color:${D.navy}">Additional note:</b> ${esc(o.note)}</td></tr>` : '';
+
+    const sign = (name, title) => `<td style="${F}width:50%;vertical-align:bottom;padding:28px 10px 0">
+        <div style="border-top:1.5px solid #111;padding-top:4px;text-align:center;font-size:11px;color:${D.ink}"><b>${esc(name)}</b><br>${esc(title)}</div></td>`;
+    const ack = gap(8) + bar(nextSec("EMPLOYEE'S COMMENTS / ACKNOWLEDGEMENT")) + `
+      <tr><td colspan="4" style="border:1px solid ${D.line};height:34px">&nbsp;</td></tr>
+      <tr><td colspan="4" style="${F}padding:8px 0 0;font-size:11px;font-style:italic;color:${D.ink}">Acknowledged by:</td></tr>
+      <tr><td colspan="4" style="padding:0"><table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+        ${sign(o.rep.name || '[Name]', o.rep.position || '')}${sign(o.signer.name || '[Coach]', o.signer.title || '')}
+      </tr></table></td></tr>`;
+
+    return `<table cellpadding="0" cellspacing="0" border="0" width="100%" style="${F}max-width:960px;background:#fff;color:${D.ink}">
+  <tr>
+    <td colspan="2" style="padding:4px 0 8px;vertical-align:middle"><img src="${CL_LOGO_URL}" alt="Outsource Accelerator" width="110" style="display:block;width:110px;height:auto;border:0"></td>
+    <td colspan="2" style="${F}padding:4px 0 8px;text-align:right;font-size:10px;line-height:1.5;color:${D.navy}">info@outsourceaccelerator.com<br>outsourceaccelerator.com<br>+ (632) 8562.8025</td>
+  </tr>
+  <tr><td colspan="4" style="border-top:3px solid ${D.navy};font-size:0;line-height:0">&nbsp;</td></tr>
+  <tr><td colspan="4" style="${F}padding:10px 0 2px;font-size:22px;font-weight:800;color:${D.navy};letter-spacing:.3px">COACHING LOG</td></tr>
+  <tr><td colspan="4" style="${F}padding:0 0 8px;font-size:11.5px;font-weight:700;color:${D.ink}">Sales Development, Outbound Department${o.subtitle ? ' &nbsp;|&nbsp; ' + esc(o.subtitle) : ''}</td></tr>
+  ${info.join('')}
+  ${gap(8)}
+  ${strengths}
+  ${discussion}
+  ${note}
+  ${ack}
+  <tr><td colspan="4" style="border-top:1px solid ${D.line};padding:8px 0 0;${F}font-size:9px;line-height:1.6;color:${D.ink};text-align:center">Confidential Property of Outsource Accelerator &nbsp;||&nbsp; This document and its contents shall not be disclosed, reproduced, or distributed without prior written consent from the Company.<br><span style="color:${D.mute}">Outsource Accelerator, Unit 4301 43F, One Corporate Center, Julia Vargas Corner Meralco Ave., Ortigas Center, Pasig City, Philippines 1605</span></td></tr>
+</table>`;
+  }
+
+  // Plain-text fallback for the same document.
+  function clDocumentPlain(o, colsPlain) {
+    const L = [];
+    L.push('Subject: ' + (window._clEmailSubject || '')); L.push('');
+    L.push('COACHING LOG'); L.push('Sales Development, Outbound Department' + (o.subtitle ? ' | ' + o.subtitle : ''));
+    o.info.forEach(p => L.push(p[0] + ': ' + p[1]));
+    if (o.strengths && o.strengths.length) { L.push(''); L.push('STRENGTHS'); o.strengths.forEach((s, i) => L.push((i + 1) + '. ' + s.title + ' ' + s.detail)); }
+    L.push(''); L.push('COACHING DISCUSSION');
+    o.heads.forEach((h, i) => { L.push(''); L.push(h.toUpperCase()); L.push(colsPlain[i] || ''); });
+    if (o.note) { L.push(''); L.push('Additional note: ' + o.note); }
+    L.push(''); L.push("EMPLOYEE'S COMMENTS / ACKNOWLEDGEMENT"); L.push('Acknowledged by:');
+    L.push((o.rep.name || '[Name]') + ', ' + (o.rep.position || '')); L.push((o.signer.name || '[Coach]') + ', ' + (o.signer.title || ''));
+    return L.join('\n');
+  }
+
+  function clSetDocOutput(o, colsPlain, subject) {
+    $('clSubjectLine').textContent = clDeDash(subject);
+    window._clEmailSubject = clDeDash(subject);
+    const html = clDeDash(clDocument(o));
+    $('clEmailPreview').innerHTML = html;
+    window._clEmailHtml = html;
+    window._clEmailPlain = clDeDash(clDocumentPlain(o, colsPlain));
+  }
+
+  function clRenderBEEF() {
+    const v = id => ($(id) && $(id).value || '').trim();
+    const name = v('clTmName'), date = $('clConvoDate').value;
+    const tlAuto = clTeamLeadFor(name);
+    if ($('clBfTL')) $('clBfTL').placeholder = tlAuto || 'Team lead';
+    const coach = v('clBfCoach') || 'Rochelle Jan Valdez';
+    const info = [['Name', esc(name) || '[Name]'], ['Date', clFmtDate(date) || '[Date]'],
+                  ['Position', esc(v('clBfPosition'))], ['Team Lead', esc(v('clBfTL') || tlAuto)],
+                  ['Coach', esc(coach)]];
+    if (v('clBfPartner')) info.push(['Partner', esc(v('clBfPartner'))]);
+    const beh = v('clBfBehavior').split('\n');
+    const head = (beh.shift() || '').trim(), rest = beh.join('\n').trim();
+    const behHtml = (head ? `<div style="margin:0 0 8px"><b>${esc(head)}</b></div>` : '') + clRich(rest);
+    const o = {
+      subtitle: v('clBfTopic'), info,
+      strengths: clStrengthItems(v('clBfStrengths')),
+      heads: ['Behavior', 'Example', 'Effect', 'Future'], widths: ['15%', '30%', '26%', '29%'],
+      cols: [behHtml || '&nbsp;', clRich(v('clBfExample')) || '&nbsp;', clRich(v('clBfEffect')) || '&nbsp;',
+             v('clBfFuture') ? '<div style="margin:0 0 6px"><b>Action Plans:</b></div>' + clRich(v('clBfFuture')) : '&nbsp;'],
+      note: v('clBfNote'),
+      rep: { name: name, position: v('clBfPosition') },
+      signer: { name: coach, title: CL_COACH_TITLES[coach] || 'Coach' }
+    };
+    clSetDocOutput(o, [v('clBfBehavior'), v('clBfExample'), v('clBfEffect'), v('clBfFuture')],
+      `Coaching Log | ${name || '[Name]'} | ${clFmtDate(date) || '[Date]'}`);
+  }
+
+  // "Insert DC stats" for GROW Reality: the rep's outcomes for the session's month, from the
+  // Outbound Dashboard feed (meeting date). Same buckets as the Outbound DC Stats page.
+  function clInsertDcStats() {
+    const name = $('clTmName').value.trim(); const id = name ? resolveAgent(name) : null;
+    if (!id) { alert('Pick the team member first.'); return; }
+    if (!_feedRaw.length) { alert('DC data is not loaded yet (or the dashboard is on the masterfile). Try again in a moment.'); return; }
+    const ref = $('clConvoDate').value || localIso(new Date());
+    const ym = ref.slice(0, 7), today = localIso(new Date());
+    const t = {};
+    _feedRaw.forEach(r => { if (r.date.slice(0, 7) === ym && r.date <= today && resolveAgent(r.sdr) === id)
+      Object.keys(r).forEach(k => { if (k !== 'date' && k !== 'sdr') t[k] = (t[k] || 0) + r[k]; }); });
+    const n = k => t[k] || 0;
+    const showed = n('both_attended') + n('lead_attended');
+    const held = n('total_dcs') - n('scheduled') - n('rescheduled') - n('no_outcome');
+    const label = new Date(ym + '-01T00:00:00').toLocaleDateString('en-US', { month: 'long' });
+    const txt = `${label} DC outcomes (by meeting date, to ${clFmtDate(today < ref ? today : ref)}):\nTotal DCs: ${n('total_dcs')}\n• Both Attended: ${n('both_attended')}\n• Lead Attended: ${n('lead_attended')}\n• BPO Attended: ${n('bpo_attended')}\n• Canceled: ${n('canceled_by_lead') + n('canceled_by_partner') + n('canceled_unattributed')}\n• No Show: ${n('no_show')}\n• Still scheduled: ${n('scheduled') + n('rescheduled')}\nShow-up rate: ${held > 0 ? Math.round(showed / held * 100) + '% (' + showed + ' of ' + held + ' held)' : 'n/a'}`;
+    const el = $('clWkReality'); el.value = el.value.trim() ? txt + '\n\n' + el.value.trim() : txt;
+  }
+
   function clRender() {
     if (_clState.mode === 'quick')     { clRenderQuickPlaceholder(); return; }
     if (_clState.mode === 'weekly')    { clRenderWeekly(); return; }
+    if (_clState.mode === 'beef')      { clRenderBEEF();   return; }
     if (_clState.mode === 'sbi')       { clRenderSBI();    return; }
     if (_clState.mode === 'pip')       { clRenderPIP();    return; }
     const f = {
