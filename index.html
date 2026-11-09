@@ -1001,7 +1001,7 @@
 
           <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
             <button id="clModeQuick" class="cl-chip" onclick="clSetMode('quick')">⚡ Quick (one-line → AI)</button>
-            <button id="clModeWeekly" class="cl-chip on-navy" onclick="clSetMode('weekly')">Weekly Coaching (GROW)</button>
+            <button id="clModeWeekly" class="cl-chip on-navy" onclick="clSetMode('weekly')">GROW Coaching</button>
             <button id="clModeBEEF" class="cl-chip" onclick="clSetMode('beef')">BEEF Coaching</button>
             <button id="clModeViolation" class="cl-chip" onclick="clSetMode('violation')">Post-Booking Cadence</button>
             <button id="clModeSBI" class="cl-chip" onclick="clSetMode('sbi')">General Performance</button>
@@ -1106,13 +1106,25 @@
 
           <!-- Weekly coaching fields (GROW → AI → template) -->
           <div id="clWeeklyFields" style="display:none">
-            <div class="cl-field" style="margin-top:4px">
+            <div class="cl-field" style="margin-top:4px;background:#F6F8FC;border:1px solid var(--border);border-radius:10px;padding:10px 12px">
+              <label class="cl-label">Rough notes or Fireflies transcript <span style="font-weight:400;color:var(--slate)">— optional. Paste your notes, or the full transcript of the coaching session from Fireflies. AI fills in the GROW fields below for you to review. Leave it empty to have AI polish what you typed in the fields.</span></label>
+              <textarea id="clWkNotes" class="cl-input" rows="5" placeholder="e.g. Monthly review with Jesley. October SUR 49%, goal 60% in November. Leads going quiet after booking, invites not accepted. Agreed: confirm invite acceptance within 1 hour, full reminder cadence..."></textarea>
+              <div style="margin-top:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                <button id="clBtnGenerate" onclick="clGenerateWeekly()" style="background:#E91E8C;color:#fff;border:none;border-radius:8px;padding:9px 20px;font-size:13px;font-weight:700;cursor:pointer">Draft with AI ✨</button>
+                <span id="clGenerateStatus" style="font-size:11px"></span>
+              </div>
+            </div>
+            <div class="cl-field">
+              <label class="cl-label">Topic <span style="font-weight:400;color:var(--slate)">— shown under the title, e.g. Monthly Performance Review: October 2026 or Weekly Coaching</span></label>
+              <input id="clWkTopic" class="cl-input" oninput="clRender()" placeholder="e.g. Monthly Performance Review: October 2026">
+            </div>
+            <div class="cl-field">
               <label class="cl-label">Strengths / observation <span style="font-weight:400;color:var(--slate)">— lines written as <i>Title. detail</i> show as Strengths</span></label>
-              <textarea id="clWkObs" class="cl-input" oninput="clRender()" rows="2" placeholder="e.g. Cadence compliance is inconsistent — Steps 3 & 4 missed on 2 bookings this week."></textarea>
+              <textarea id="clWkObs" class="cl-input" oninput="clRender()" rows="2" placeholder="e.g. Booking volume. Jesley booked 16 DCs this month, the most on MeloAce."></textarea>
             </div>
             <div class="cl-field">
               <label class="cl-label">Goal <span style="font-weight:400;color:var(--slate)">— what do they want to achieve?</span></label>
-              <textarea id="clWkGoal" class="cl-input" oninput="clRender()" rows="2" placeholder="e.g. Book 3 DCs this week and complete the full cadence for each one."></textarea>
+              <textarea id="clWkGoal" class="cl-input" oninput="clRender()" rows="2" placeholder="e.g. To improve show-up rate from 49% to 60% by the end of November."></textarea>
             </div>
             <div class="cl-field">
               <label class="cl-label">Reality <span style="font-weight:400;color:var(--slate)">— what happened? include the numbers</span>
@@ -1125,7 +1137,7 @@
             </div>
             <div class="cl-field">
               <label class="cl-label">Way Forward <span style="font-weight:400;color:var(--slate)">— action plans the SDR commits to</span></label>
-              <textarea id="clWkWill" class="cl-input" oninput="clRender()" rows="2" placeholder="e.g. I will complete all 6 cadence steps for every booking and check off the list before closing HubSpot."></textarea>
+              <textarea id="clWkWill" class="cl-input" oninput="clRender()" rows="2" placeholder="1. Confirm every invite.&#10;- Check acceptance within 1 hour of booking and call if not accepted."></textarea>
             </div>
             <div style="display:flex;gap:12px">
               <div class="cl-field" style="flex:1">
@@ -1146,10 +1158,7 @@
                 <input type="date" id="clWkNextDate" class="cl-input" oninput="clRender()">
               </div>
             </div>
-            <div style="margin-top:16px">
-              <button id="clBtnGenerate" onclick="clGenerateWeekly()" title="Optional: rewrites your notes into polished coaching language" style="background:#E91E8C;color:#fff;border:none;border-radius:8px;padding:11px 26px;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:.3px;transition:opacity .15s">Generate with AI ✨</button>
-            </div>
-            <div id="clGenerateStatus" style="font-size:11px;margin-top:6px;min-height:16px"></div>
+
           </div>
 
           <!-- BEEF coaching fields (Behavior, Example, Effect, Future) -->
@@ -7638,7 +7647,9 @@ ${notes}`;
     const tv = ($('clCoachTypeSel') && $('clCoachTypeSel').value) || 'performance';
     const type = ({ weekly: 'Weekly', performance: 'Performance', violation: 'Violation', pip: 'PIP' }[tv]) || 'Performance';
     const topic = window._clQuickTopic ||
-      ({ weekly:'Weekly Coaching', beef:'BEEF Coaching', violation:'Post-Booking Cadence', sbi:'General Performance', pip:'PIP', quick:'Quick' }[_clState.mode] || 'Coaching');
+      (_clState.mode === 'weekly' && $('clWkTopic') && $('clWkTopic').value.trim()) ||
+      (_clState.mode === 'beef' && $('clBfTopic') && $('clBfTopic').value.trim()) ||
+      ({ weekly:'GROW Coaching', beef:'BEEF Coaching', violation:'Post-Booking Cadence', sbi:'General Performance', pip:'PIP', quick:'Quick' }[_clState.mode] || 'Coaching');
     const coach = ((_clState.mode === 'weekly' ? ($('clWkCoachName') && $('clWkCoachName').value)
                     : _clState.mode === 'beef' ? ($('clBfCoach') && $('clBfCoach').value)
                     : ($('clSBICoach') && $('clSBICoach').value))
@@ -7919,7 +7930,7 @@ ${notes}`;
     $('clModeSBI').classList.toggle('on-navy',       mode === 'sbi');
     $('clModePIP').classList.toggle('on-navy',       mode === 'pip');
     if ($('clCoachTypeSel')) $('clCoachTypeSel').value = ({ weekly:'weekly', violation:'violation', pip:'pip', sbi:'performance', quick:'performance' }[mode] || 'performance');
-    const subtitles = { quick:'Quick Coaching · one-line → AI draft', weekly:'Weekly 1-on-1 Coaching Log · GROW', beef:'Coaching Log · Behavior, Example, Effect, Future', violation:'Post-Booking Cadence · 6-Step Standard', sbi:'General Performance Coaching · SBI Model', pip:'Performance Improvement Plan' };
+    const subtitles = { quick:'Quick Coaching · one-line → AI draft', weekly:'Coaching Log · Goal, Reality, Opportunity, Way Forward', beef:'Coaching Log · Behavior, Example, Effect, Future', violation:'Post-Booking Cadence · 6-Step Standard', sbi:'General Performance Coaching · SBI Model', pip:'Performance Improvement Plan' };
     $('clModeSubtitle').textContent = subtitles[mode] || '';
     $('clConvoDateLabel').textContent = (mode === 'weekly' || mode === 'beef') ? 'Session date' : 'Conversation date';
     document.querySelectorAll('.cl-violation-cell').forEach(el => {
@@ -7944,7 +7955,7 @@ ${notes}`;
         window._clEmailSubject = clDeDash(subject);
         $('clEmailPreview').innerHTML = `<div style="text-align:center;padding:60px 20px;font-family:sans-serif">
           <div style="font-size:15px;font-weight:600;color:#555;margin-bottom:8px">Type in the GROW fields to build the coaching log</div>
-          <div style="font-size:12px;color:#aaa">Goal, Reality, Opportunity and Way Forward fill the table as you type. Generate with AI is optional.</div>
+          <div style="font-size:12px;color:#aaa">Goal, Reality, Opportunity and Way Forward fill the table as you type, or paste a transcript and click Draft with AI.</div>
         </div>`;
         window._clEmailHtml = ''; window._clEmailPlain = '';
         return;
@@ -7963,7 +7974,7 @@ ${notes}`;
                   ['Coach', esc(coachName)]];
     if (nextDate) info.push(['Next session', clFmtDate(nextDate)]);
     const o = {
-      subtitle: 'Weekly Coaching (GROW)', info,
+      subtitle: fv('clWkTopic') || 'GROW Coaching', info,
       strengths: g.manual ? g.strengths : (Array.isArray(g.strengths) ? g.strengths : []).map(x => ({ title: String(x.title || '').replace(/[.:]?$/, '.'), detail: x.detail || '' })),
       heads: ['Goal', 'Reality', 'Opportunity', 'Way Forward'], widths: ['18%', '30%', '24%', '28%'],
       cols: [g.goal ? `<b>${esc(g.goal)}</b>` : '&nbsp;', clRich(g.reality) || '&nbsp;', clRich(opp) || '&nbsp;',
@@ -7975,64 +7986,71 @@ ${notes}`;
     clSetDocOutput(o, [g.goal || '', g.reality || '', opp, wf], subject);
   }
 
+  // GROW: rough notes or a Fireflies transcript (or, if empty, the fields themselves) ->
+  // the GROW fields, filled into the form for the coach to review. The log then builds
+  // from the fields, exactly as when typed by hand.
   async function clGenerateWeekly() {
-    const obs     = $('clWkObs').value.trim();
-    const goal    = $('clWkGoal').value.trim();
-    const reality = $('clWkReality').value.trim();
-    const options = $('clWkOptions').value.trim();
-    const will    = $('clWkWill').value.trim();
-    if (!obs && !goal && !reality && !options && !will) {
-      alert('Fill in at least one GROW field before generating.');
-      return;
-    }
-    const btn    = $('clBtnGenerate');
-    const status = $('clGenerateStatus');
-    btn.textContent = 'Generating…';
-    btn.disabled    = true;
-    status.textContent = '';
+    const fv = id => ($(id) && $(id).value || '').trim();
+    const notes = fv('clWkNotes');
+    const typed = [['Strengths / observation', fv('clWkObs')], ['Goal', fv('clWkGoal')], ['Reality', fv('clWkReality')],
+                   ['Opportunity', fv('clWkOptions')], ['Way Forward', fv('clWkWill')]].filter(p => p[1]);
+    if (!notes && !typed.length) { alert('Paste your notes or the Fireflies transcript, or fill in at least one GROW field.'); return; }
+    if (notes.length > 200000) { alert('That transcript is very long. Paste only the coaching session (under about 200,000 characters).'); return; }
+    const name = fv('clTmName');
+    const first = (name.match(/[“"]([^”"]+)[”"]/) || [])[1] || name.split(/\s+/)[0] || 'the SDR';
+    const coachName = fv('clWkCoachName') || 'the coach';
+    const isTranscript = notes.length > 4000 || /^\s*\S.{0,40}\s(\d{1,2}:)?\d{1,2}:\d{2}\b/m.test(notes);
+    const btn = $('clBtnGenerate'), st = $('clGenerateStatus');
+    btn.disabled = true; btn.textContent = 'Drafting…'; st.style.color = 'var(--slate)';
+    st.textContent = isTranscript ? 'Reading the transcript, this can take up to a minute…' : '';
 
-    const repFirst = ($('clTmName').value.trim().split(/\s+/)[0]) || 'the SDR';
-    const userPrompt = `You are writing a formal weekly coaching log (GROW model) for ${repFirst}, an outbound SDR (Client Success Executive) at Outsource Accelerator, an offshore staffing marketplace. SDRs qualify leads by phone and book discovery calls with partner BPOs.
+    const input = (notes ? (isTranscript
+        ? `TRANSCRIPT of the coaching session (likely exported from Fireflies, with speaker names and timestamps), possibly with the coach's notes added. The coach is ${coachName} and the SDR is ${first}; other speakers may be team leads or QA. Use only what was actually said. Ignore greetings, small talk, audio checks and filler.\n\n${notes}`
+        : `COACH'S NOTES:\n${notes}`) : '')
+      + (typed.length ? `\n\nFIELDS THE COACH ALREADY TYPED (keep their meaning and every figure; improve the wording):\n` + typed.map(p => p[0] + ': ' + p[1]).join('\n') : '');
 
-TERMINOLOGY: "DC" means Discovery Call. Never write "Decision Conversation".
-STYLE: plain, specific, professional. Refer to the SDR by first name (${repFirst}). Do NOT use em dashes or en dashes; use commas, periods, colons or parentheses. Never invent numbers, names or events that are not in the notes; keep every figure exactly as given.
+    const prompt = `You are writing a formal GROW coaching log (Goal, Reality, Opportunity, Way Forward) for ${first}, an outbound SDR (Client Success Executive) at Outsource Accelerator, an offshore staffing marketplace. SDRs qualify leads by phone and book discovery calls (DCs) with partner BPOs. The session may be a weekly coaching or a monthly performance review.
 
-SESSION NOTES:
-Observation: ${obs||'(not provided)'}
-Goal: ${goal||'(not provided)'}
-Reality (what happened, with numbers): ${reality||'(not provided)'}
-Opportunity (what could have been done differently): ${options||'(not provided)'}
-Way Forward (what the SDR commits to): ${will||'(not provided)'}
+RULES:
+- Use only facts in the input. Never invent names, dates, numbers, quotes or outcomes. Keep every figure exactly as given.
+- Refer to the SDR as ${first}. Plain, specific, professional, neutral tone. No praise the input does not support.
+- Do NOT use em dashes or en dashes; use commas, periods, colons or parentheses.
+- "DC" means Discovery Call. Show-up rate may be written as SUR.
 
-Return ONLY valid JSON (no markdown) with this structure:
+${input}
+
+Return ONLY valid JSON (no markdown):
 {
-  "strengths": [{"title": "Short label, 2 to 4 words", "detail": "One or two sentences on what they did well, from the notes"}],
-  "goal": "One specific, measurable goal with a timeframe, e.g. To improve show-up rate from 51% to 60% in May.",
-  "reality": "What happened. Keep any DC outcome numbers as separate lines starting with '• '. Then one or two short paragraphs on the causes discussed.",
-  "opportunity": ["What could have been done differently (one item per entry)"],
-  "wayForward": [{"title": "Action plan headline", "steps": ["Concrete step", "Concrete step"]}],
-  "note": "Optional one-line additional note, or empty string"
+  "topic": "Short subject, e.g. Monthly Performance Review: October 2026 or Weekly Coaching. Empty string if unclear.",
+  "strengths": [{"title": "2 to 5 word label", "detail": "One or two sentences on what ${first} did well"}],
+  "goal": "One specific, measurable goal with a timeframe",
+  "reality": "What happened. Put DC outcome numbers on separate lines starting with '• '. Then one or two short paragraphs on the causes discussed, including what ${first} said or acknowledged.",
+  "opportunity": ["What could have been done differently, one item per entry"],
+  "wayForward": [{"title": "Action plan headline", "steps": ["Concrete step", "Concrete step"]}]
 }
-
-Give 2 to 4 strengths only if the notes support them (otherwise an empty array), 2 to 4 opportunity items, and 2 to 4 wayForward plans with 1 to 3 steps each.`;
+Give 2 to 4 strengths only if the input supports them (else an empty array), 2 to 4 opportunity items, and 2 or 3 wayForward plans with 1 to 3 steps each.`;
 
     try {
-      const data = await clAiRelay({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 2000,
-        messages: [{ role: 'user', content: userPrompt }]
-      });
-      const text = clAiText(data).trim();
-      window._clGeneratedWeekly = clParseJson(text);
-      status.style.color = '#0A7A0A';
-      status.textContent = '✓ Generated — preview updated.';
-      clRenderWeekly();
+      const data = await clAiRelay({ model: isTranscript ? 'claude-sonnet-4-6' : 'claude-haiku-4-5-20251001', max_tokens: 3000,
+                                     messages: [{ role: 'user', content: prompt }] },
+                                   isTranscript ? 2 : undefined, isTranscript ? 120000 : undefined);
+      const g = clParseJson(clAiText(data).trim());
+      const L = x => Array.isArray(x) ? x : (x ? [x] : []);
+      const set = (id, val) => { if ($(id)) $(id).value = clDeDash(val || ''); };
+      if (g.topic && !fv('clWkTopic')) set('clWkTopic', g.topic);
+      set('clWkObs', L(g.strengths).map(x => `${String(x.title || '').replace(/[.:]?$/, '.')} ${x.detail || ''}`.trim()).join('\n'));
+      set('clWkGoal', g.goal);
+      set('clWkReality', g.reality);
+      set('clWkOptions', L(g.opportunity).join('\n'));
+      set('clWkWill', L(g.wayForward).map((w, i) =>
+        `${i + 1}. ${String(w.title || '').replace(/[.:]?$/, '.')}\n` + L(w.steps).map(x => '- ' + x).join('\n')).join('\n\n'));
+      window._clGeneratedWeekly = null;   // the log builds from the fields from here on
+      st.style.color = '#0A7A0A'; st.textContent = '✓ Drafted into the fields below. Review each one before sending.';
+      clRender();
     } catch (err) {
-      status.style.color = '#C00';
-      status.textContent = 'Error: ' + err.message;
+      st.style.color = '#C00'; st.textContent = 'Error: ' + err.message;
     } finally {
-      btn.textContent = 'Generate with AI ✨';
-      btn.disabled = false;
+      btn.disabled = false; btn.textContent = 'Draft with AI ✨';
     }
   }
 
