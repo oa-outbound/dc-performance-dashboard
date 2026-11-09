@@ -1107,25 +1107,25 @@
           <!-- Weekly coaching fields (GROW → AI → template) -->
           <div id="clWeeklyFields" style="display:none">
             <div class="cl-field" style="margin-top:4px">
-              <label class="cl-label">Observation <span style="font-weight:400;color:var(--slate)">— what did you observe about this rep?</span></label>
-              <textarea id="clWkObs" class="cl-input" rows="2" placeholder="e.g. Cadence compliance is inconsistent — Steps 3 & 4 missed on 2 bookings this week."></textarea>
+              <label class="cl-label">Strengths / observation <span style="font-weight:400;color:var(--slate)">— lines written as <i>Title. detail</i> show as Strengths</span></label>
+              <textarea id="clWkObs" class="cl-input" oninput="clRender()" rows="2" placeholder="e.g. Cadence compliance is inconsistent — Steps 3 & 4 missed on 2 bookings this week."></textarea>
             </div>
             <div class="cl-field">
               <label class="cl-label">Goal <span style="font-weight:400;color:var(--slate)">— what do they want to achieve?</span></label>
-              <textarea id="clWkGoal" class="cl-input" rows="2" placeholder="e.g. Book 3 DCs this week and complete the full cadence for each one."></textarea>
+              <textarea id="clWkGoal" class="cl-input" oninput="clRender()" rows="2" placeholder="e.g. Book 3 DCs this week and complete the full cadence for each one."></textarea>
             </div>
             <div class="cl-field">
               <label class="cl-label">Reality <span style="font-weight:400;color:var(--slate)">— what happened? include the numbers</span>
                 <button type="button" onclick="clInsertDcStats()" class="cl-chip" style="margin-left:6px;padding:2px 8px;font-size:10.5px">+ Insert DC stats</button></label>
-              <textarea id="clWkReality" class="cl-input" rows="2" placeholder="e.g. Averaging 1.5 DCs/day. Cadence steps are being skipped under pressure."></textarea>
+              <textarea id="clWkReality" class="cl-input" oninput="clRender()" rows="2" placeholder="e.g. Averaging 1.5 DCs/day. Cadence steps are being skipped under pressure."></textarea>
             </div>
             <div class="cl-field">
               <label class="cl-label">Opportunity <span style="font-weight:400;color:var(--slate)">— what could have been done differently? (one per line)</span></label>
-              <textarea id="clWkOptions" class="cl-input" rows="3" placeholder="e.g. Schedule-send reminder emails right after booking&#10;Use the cadence checklist before closing HubSpot"></textarea>
+              <textarea id="clWkOptions" class="cl-input" oninput="clRender()" rows="3" placeholder="e.g. Schedule-send reminder emails right after booking&#10;Use the cadence checklist before closing HubSpot"></textarea>
             </div>
             <div class="cl-field">
               <label class="cl-label">Way Forward <span style="font-weight:400;color:var(--slate)">— action plans the SDR commits to</span></label>
-              <textarea id="clWkWill" class="cl-input" rows="2" placeholder="e.g. I will complete all 6 cadence steps for every booking and check off the list before closing HubSpot."></textarea>
+              <textarea id="clWkWill" class="cl-input" oninput="clRender()" rows="2" placeholder="e.g. I will complete all 6 cadence steps for every booking and check off the list before closing HubSpot."></textarea>
             </div>
             <div style="display:flex;gap:12px">
               <div class="cl-field" style="flex:1">
@@ -1147,7 +1147,7 @@
               </div>
             </div>
             <div style="margin-top:16px">
-              <button id="clBtnGenerate" onclick="clGenerateWeekly()" style="background:#E91E8C;color:#fff;border:none;border-radius:8px;padding:11px 26px;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:.3px;transition:opacity .15s">Generate with AI ✨</button>
+              <button id="clBtnGenerate" onclick="clGenerateWeekly()" title="Optional: rewrites your notes into polished coaching language" style="background:#E91E8C;color:#fff;border:none;border-radius:8px;padding:11px 26px;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:.3px;transition:opacity .15s">Generate with AI ✨</button>
             </div>
             <div id="clGenerateStatus" style="font-size:11px;margin-top:6px;min-height:16px"></div>
           </div>
@@ -7934,24 +7934,29 @@ ${notes}`;
     const nextDate    = $('clWkNextDate').value;
     const coachName   = ($('clWkCoachName') && $('clWkCoachName').value.trim()) || 'Rochelle Jan Valdez';
     const subject = `Coaching Log | ${tmName || '[Name]'} | ${clFmtDate(sessionDate) || '[Date]'}`;
-    const g = window._clGeneratedWeekly;
-
+    // No AI result yet: build the log straight from what the coach typed, so GROW works
+    // without the AI relay. Generate with AI only polishes it.
+    let g = window._clGeneratedWeekly;
+    const fv = id => ($(id) && $(id).value || '').trim();
     if (!g) {
-      $('clSubjectLine').textContent = clDeDash(subject);
-      window._clEmailSubject = clDeDash(subject);
-      $('clEmailPreview').innerHTML = `<div style="text-align:center;padding:60px 20px;font-family:sans-serif">
-        <div style="font-size:40px;margin-bottom:14px">✨</div>
-        <div style="font-size:15px;font-weight:600;color:#555;margin-bottom:8px">Fill in the GROW fields and click Generate</div>
-        <div style="font-size:12px;color:#aaa">AI writes the coaching log in the formal Goal, Reality, Opportunity, Way Forward layout</div>
-      </div>`;
-      window._clEmailHtml  = '';
-      window._clEmailPlain = '';
-      return;
+      if (!fv('clWkGoal') && !fv('clWkReality') && !fv('clWkOptions') && !fv('clWkWill')) {
+        $('clSubjectLine').textContent = clDeDash(subject);
+        window._clEmailSubject = clDeDash(subject);
+        $('clEmailPreview').innerHTML = `<div style="text-align:center;padding:60px 20px;font-family:sans-serif">
+          <div style="font-size:15px;font-weight:600;color:#555;margin-bottom:8px">Type in the GROW fields to build the coaching log</div>
+          <div style="font-size:12px;color:#aaa">Goal, Reality, Opportunity and Way Forward fill the table as you type. Generate with AI is optional.</div>
+        </div>`;
+        window._clEmailHtml = ''; window._clEmailPlain = '';
+        return;
+      }
+      g = { manual: true, goal: fv('clWkGoal'), reality: fv('clWkReality'),
+            opportunity: fv('clWkOptions'), wayForwardText: fv('clWkWill'),
+            strengths: clStrengthItems(fv('clWkObs')).filter(x => x.title) };
     }
 
     const asList = x => Array.isArray(x) ? x : String(x || '').split('\n').map(s => s.trim()).filter(Boolean);
     const opp = asList(g.opportunity).map(x => '- ' + String(x).replace(/^[-•]\s*/, '')).join('\n');
-    const wf = (Array.isArray(g.wayForward) ? g.wayForward : []).map((w, i) =>
+    const wf = g.manual ? g.wayForwardText : (Array.isArray(g.wayForward) ? g.wayForward : []).map((w, i) =>
       `${i + 1}. ${String(w.title || '').replace(/[.]?$/, '.')}\n` + asList(w.steps).map(st => '- ' + String(st).replace(/^[-•]\s*/, '')).join('\n')).join('\n\n');
     const info = [['Name', esc(tmName) || '[Name]'], ['Date', clFmtDate(sessionDate) || '[Date]'],
                   ['Position', 'Client Success Executive'], ['Team Lead', esc(clTeamLeadFor(tmName))],
@@ -7959,7 +7964,7 @@ ${notes}`;
     if (nextDate) info.push(['Next session', clFmtDate(nextDate)]);
     const o = {
       subtitle: 'Weekly Coaching (GROW)', info,
-      strengths: (Array.isArray(g.strengths) ? g.strengths : []).map(x => ({ title: String(x.title || '').replace(/[.:]?$/, '.'), detail: x.detail || '' })),
+      strengths: g.manual ? g.strengths : (Array.isArray(g.strengths) ? g.strengths : []).map(x => ({ title: String(x.title || '').replace(/[.:]?$/, '.'), detail: x.detail || '' })),
       heads: ['Goal', 'Reality', 'Opportunity', 'Way Forward'], widths: ['18%', '30%', '24%', '28%'],
       cols: [g.goal ? `<b>${esc(g.goal)}</b>` : '&nbsp;', clRich(g.reality) || '&nbsp;', clRich(opp) || '&nbsp;',
              wf ? '<div style="margin:0 0 6px"><b>Action Plans:</b></div>' + clRich(wf) : '&nbsp;'],
