@@ -1021,7 +1021,7 @@
             <div class="cl-field">
               <label class="cl-label">Squad</label>
               <select id="clSquad" class="cl-input" onchange="clSetSquad()">
-                <option>JumHon</option><option>MeloAce</option><option>DEV</option><option>Bridge</option><option>POC TEAM</option><option>Other</option>
+                <option>JumHon</option><option>MeloAce</option><option>DEV</option><option>POC TEAM</option><option>Other</option>
               </select>
             </div>
             <div class="cl-field">
@@ -1536,21 +1536,24 @@
   const REFRESH_MS   = 60000;
   const DAILY_TARGET = 2;
 
+  // Synced to "Outbound SDR Roster - NOV 2026" (Drive 1oOS8hd9oLIo3jHBwifeI1cBMi-hpybxe), 9 Nov 2026.
+  // Hidden members have left or are off the current roster; they stay so their history still resolves.
   const TEAMS = [
     {
-      id: 'dijumhon', name: 'JumHon', color: '#1A2DB5',  // 9PM-8AM (4x11) · TL Jumar · SMEs Diana, Alvin B
+      id: 'dijumhon', name: 'JumHon', color: '#1A2DB5',  // TL Jumar Vere · day 5x9 (05:00-18:00 starts)
       members: [
         { id: 'anos',          display: 'Marc Anos',             ln: 'anos', email: 'marc@outsourceaccelerator.com' },
         { id: 'demayo',        display: 'Devi Demayo',           ln: 'demayo', email: 'j.demayo@outsourceaccelerator.com' },
         { id: 'saminado',      display: 'Jervin Saminado',       ln: 'saminado', email: 'jervin@outsourceaccelerator.com' },
-        { id: 'verastigue',    display: 'Bedier Verastigue',     ln: 'verastigue', email: 'b.verastigue@outsourceaccelerator.com', hidden: true },
-        { id: 'velasco',       display: 'Edward Velasco',        ln: 'velasco', email: 'e.velasco@outsourceaccelerator.com' },
+        { id: 'bascos',     display: 'Jessica Bascos',        ln: 'bascos', email: 'j.bascos@outsourceaccelerator.com' },
         { id: 'petras',        display: 'Art Joseph Petras',     ln: 'petras', email: 'a.petras@outsourceaccelerator.com' },
         { id: 'fortez',        display: 'Charlie Fortez',        ln: 'fortez', email: 'c.fortez@outsourceaccelerator.com' },
-        { id: 'ramirez',       display: 'Mark Lauren Ramirez',   ln: 'ramirez', hidden: true },
         { id: 'sarmiento_j',   display: 'Julius Sarmiento',      ln: 'sarmiento', fn: 'julius', email: 'j.sarmiento@outsourceaccelerator.com' },
-        { id: 'arespacochaga', display: 'Mervin Arespacochaga',  ln: 'arespacochaga', hidden: true },
         { id: 'aurelio',       display: 'Raymond Aurelio',       ln: 'aurelio', email: 'r.aurelio@outsourceaccelerator.com' },
+        { id: 'bayhon',   display: 'Alvin Bayhon',     ln: 'bayhon', email: 'ali@outsourceaccelerator.com' },
+        { id: 'verastigue',    display: 'Bedier Verastigue',     ln: 'verastigue', email: 'b.verastigue@outsourceaccelerator.com', hidden: true },
+        { id: 'ramirez',       display: 'Mark Lauren Ramirez',   ln: 'ramirez', hidden: true },
+        { id: 'arespacochaga', display: 'Mervin Arespacochaga',  ln: 'arespacochaga', hidden: true },
         { id: 'ronquillo',     display: 'Joremie Ronquillo',     ln: 'ronquillo', hidden: true },
         { id: 'cajayon',       display: 'Bryan Cajayon',         ln: 'cajayon', hidden: true },
         { id: 'sanchez',       display: 'Maria Angelica Sanchez',ln: 'sanchez', hidden: true },
@@ -1561,61 +1564,56 @@
       ]
     },
     {
-      id: 'meloace', name: 'MeloAce', color: '#059669',  // 10PM-9AM (4x11) · TL Angelica · SME Alvin Melo
+      id: 'meloace', name: 'MeloAce', color: '#059669',  // TL Angelica Tanate · night 4x11 (21:00-08:00)
       members: [
         { id: 'silang',     display: 'Gian Carlo Silang',     ln: 'silang', email: 'g.silang@outsourceaccelerator.com' },
-        { id: 'galoso',     display: 'Lawrence Galoso',       ln: 'galoso', email: 'l.galoso@outsourceaccelerator.com' },
-        { id: 'silva',      display: 'Godwin Silva',          ln: 'silva', email: 'g.silva@outsourceaccelerator.com' },
         { id: 'bautista',   display: 'Dan Mark Anthony Bautista', ln: 'bautista', email: 'd.bautista@outsourceaccelerator.com' },
         { id: 'baliuag',    display: 'Charlon Baliuag',       ln: 'baliuag', email: 'c.baliuag@outsourceaccelerator.com' },
         { id: 'malavega',   display: 'Jose Carlos Malavega',  ln: 'malavega', email: 'j.malavega@outsourceaccelerator.com' },
         { id: 'villaruel',  display: 'Lance Villaruel',       ln: 'villaruel', email: 'l.villaruel@outsourceaccelerator.com' },
         { id: 'cubol',      display: 'Jesley Cubol',          ln: 'cubol', email: 'j.cubol@outsourceaccelerator.com' },
+        { id: 'ramos_j',    display: 'Jennifer Ramos',        ln: 'ramos',   fn: 'jennifer', email: 'j.ramos@outsourceaccelerator.com' },
+        { id: 'galoso',     display: 'Lawrence Galoso',       ln: 'galoso', email: 'l.galoso@outsourceaccelerator.com', hidden: true },
+        { id: 'silva',      display: 'Godwin Silva',          ln: 'silva', email: 'g.silva@outsourceaccelerator.com', hidden: true },
         { id: 'monticarlo', display: 'John Vic Monticarlo',   ln: 'monticarlo', hidden: true },
         { id: 'aridi',      display: 'Hadi Aridi',            ln: 'aridi', hidden: true },
-        { id: 'ramos_j',    display: 'Jennifer Ramos',        ln: 'ramos',   fn: 'jennifer', email: 'j.ramos@outsourceaccelerator.com' },
         { id: 'cardell',    display: 'Donald Cardell',        ln: 'cardell', hidden: true },
         { id: 'tormon',     display: 'Michael Anthony Tormon',ln: 'tormon', hidden: true },
         { id: 'jerusalem',  display: 'Danilo Jerusalem',      ln: 'jerusalem', email: 'd.jerusalem@outsourceaccelerator.com', hidden: true },
       ]
     },
     {
-      id: 'ev', name: 'DEV', color: '#d97706',  // 11PM-10AM (4x11) · TL Jonathan · SME Vincent
+      id: 'ev', name: 'DEV', color: '#d97706',  // TL Jonathan "Ethan" Jabonete · Vincent + Pedro day, rest night 4x11
       members: [
+        { id: 'gadier',   display: 'Vincent Gadier',   ln: 'gadier', email: 'vincent@outsourceaccelerator.com' },
         { id: 'catolico',   display: 'Pedro Catolico',        ln: 'catolico', email: 'p.catolico@outsourceaccelerator.com' },
+        { id: 'tiu',        display: 'Regine Theresa Tiu',    ln: 'tiu', email: 'r.tiu@outsourceaccelerator.com' },
+        { id: 'tungol',     display: 'Lorenzo Luiz Tungol',   ln: 'tungol', email: 'l.tungol@outsourceaccelerator.com' },
         { id: 'tupaz',      display: 'Rommel Tupaz',          ln: 'tupaz', email: 'r.tupaz@outsourceaccelerator.com' },
-        { id: 'lavares',    display: 'Gian Lavares',          ln: 'lavares', hidden: true },
+        { id: 'velasco',       display: 'Edward Velasco',        ln: 'velasco', email: 'e.velasco@outsourceaccelerator.com' },
         { id: 'arcena',     display: 'Charlito Arcena',       ln: 'arcena', email: 'charlito@outsourceaccelerator.com' },
         { id: 'benjamin',   display: 'Russell Benjamin',      ln: 'benjamin', email: 'r.benjamin@outsourceaccelerator.com' },
-        { id: 'susana',     display: 'John Christian Susana', ln: 'susana', hidden: true },
-        { id: 'tungol',     display: 'Lorenzo Luiz Tungol',   ln: 'tungol', email: 'l.tungol@outsourceaccelerator.com' },
-        { id: 'magtalas',   display: 'Ayesha Magtalas',       ln: 'magtalas', email: 'o.magtalas@outsourceaccelerator.com', hidden: true },
-        { id: 'balbido',    display: 'Justine Balbido',       ln: 'balbido', email: 'j.balbido@outsourceaccelerator.com' },
         { id: 'decastro',   display: 'Catherine de Castro',   ln: 'castro', email: 'c.decastro@outsourceaccelerator.com',  ln2: 'de castro' },
+        { id: 'vosotros', display: 'Diana Vosotros',   ln: 'vosotros', email: 'diana@outsourceaccelerator.com' },
+        { id: 'jaraula',    display: 'Jezza Jezreel Jaraula', ln: 'jaraula', email: 'j.jaraula@outsourceaccelerator.com' },
+        { id: 'lavares',    display: 'Gian Lavares',          ln: 'lavares', hidden: true },
+        { id: 'susana',     display: 'John Christian Susana', ln: 'susana', hidden: true },
+        { id: 'magtalas',   display: 'Ayesha Magtalas',       ln: 'magtalas', email: 'o.magtalas@outsourceaccelerator.com', hidden: true },
+        { id: 'balbido',    display: 'Justine Balbido',       ln: 'balbido', email: 'j.balbido@outsourceaccelerator.com', hidden: true },
         { id: 'caguimbal',  display: 'Divinamor Caguimbal',   ln: 'caguimbal', hidden: true },
         { id: 'ramos_i',    display: 'Ma. Isabel Ramos',      ln: 'ramos',   fn: 'isabel', hidden: true },
-        { id: 'tiu',        display: 'Regine Theresa Tiu',    ln: 'tiu', email: 'r.tiu@outsourceaccelerator.com' },
-      ]
-    },
-    {
-      id: 'bridge', name: 'Bridge', color: '#0891b2',  // 10AM-9PM daytime coverage · TL Angelica
-      members: [
         { id: 'rampas',     display: 'Desiree Rampas',        ln: 'rampas', hidden: true },
-        { id: 'bascos',     display: 'Jessica Bascos',        ln: 'bascos', email: 'j.bascos@outsourceaccelerator.com' },
-        { id: 'jaraula',    display: 'Jezza Jezreel Jaraula', ln: 'jaraula', email: 'j.jaraula@outsourceaccelerator.com' },
       ]
     },
     {
-      id: 'poc', name: 'POC TEAM', color: '#7c3aed',
+      id: 'poc', name: 'POC TEAM', color: '#7c3aed',  // team leaders (no quota; left out of counts and leaderboards)
       members: [
         { id: 'tanate',   display: 'Angelica Tanate',  ln: 'tanate', email: 'angelica@outsourceaccelerator.com' },
-        { id: 'gadier',   display: 'Vincent Gadier',   ln: 'gadier', email: 'vincent@outsourceaccelerator.com' },
-        { id: 'bayhon',   display: 'Alvin Bayhon',     ln: 'bayhon', email: 'ali@outsourceaccelerator.com' },
         { id: 'jumar',    display: 'Jumar Vere',       ln: 'vere', email: 'j.vere@outsourceaccelerator.com'   },
-        { id: 'vosotros', display: 'Diana Vosotros',   ln: 'vosotros', email: 'diana@outsourceaccelerator.com' },
-        { id: 'melo',     display: 'Alvin Melo',       ln: 'melo', email: 'alvin@outsourceaccelerator.com' },
+        { id: 'jabonete', display: 'Jonathan Jabonete', ln: 'jabonete', email: 'j.jabonete@outsourceaccelerator.com' },
+        { id: 'melo',     display: 'Alvin Melo',       ln: 'melo', email: 'alvin@outsourceaccelerator.com', hidden: true },
       ]
-    }
+    },
   ];
 
   // ── Name-matching lookups ──
@@ -4451,11 +4449,11 @@
   const LEADERS = [
     { name:'Jumar Vere',        role:'Team Leader',        scope:['dijumhon'],         color:'#1A2DB5' },
     { name:'Angelica Tanate',   role:'Team Leader',        scope:['meloace'],          color:'#059669' },
-    { name:'Jonathan Jabonete', role:'Team Leader',        scope:['ev','bridge'],      color:'#d97706' },
-    { name:'Diana Vosotros',    role:'SME',                scope:['dijumhon'],         color:'#1A2DB5' },
+    { name:'Jonathan Jabonete', role:'Team Leader',        scope:['ev'],               color:'#d97706' },
+    { name:'Diana Vosotros',    role:'SME',                scope:['ev'],               color:'#d97706' },
     { name:'Alvin Bayhon',      role:'SME',                scope:['dijumhon'],         color:'#1A2DB5' },
     { name:'Alvin Melo',        role:'SME',                scope:['meloace'],          color:'#059669' },
-    { name:'Vincent Gadier',    role:'SME',                scope:['ev','bridge'],      color:'#d97706' },
+    { name:'Vincent Gadier',    role:'SME',                scope:['ev'],               color:'#d97706' },
     { name:'Aly Limayo',        role:'QA and Trainer',     scope:'floor',              color:'#7c3aed' }
     // Ritch (Senior Team Leader) is deliberately not listed: this report is his read on the
     // leaders under him, not a scorecard he appears in. His sessions still count toward the
@@ -4788,7 +4786,6 @@
     { name:'Jumar Vere',        role:'Team Leader', teamId:'dijumhon' },
     { name:'Angelica Tanate',   role:'Team Leader', teamId:'meloace' },
     { name:'Jonathan Jabonete', role:'Team Leader', teamId:'ev' },
-    { name:'Jonathan Jabonete', role:'Team Leader', teamId:'bridge' },   // Sept schedule: Jonathan covers DEV and Bridge
   ];
   let _tlView = 'monthly', _tlDate = '';
   function setTlView(v) {
@@ -7020,17 +7017,18 @@
   }
 
   // ── COACHING LOG ──────────────────────────────────────────────────────────
-  // Synced to the August 17-31 floor schedule (matches the dashboard TEAMS rosters)
+  // Synced to the November 2026 roster (matches the dashboard TEAMS rosters)
   const CL_ROSTER = {
-    'JumHon': ['Marc Anos','Devi Demayo','Jervin Saminado','Art Joseph Petras',
-                'Charlie Fortez','Julius Sarmiento','Edward Velasco','Raymond Aurelio'],
-    'MeloAce': ['Gian Carlo Silang','Godwin Silva','Charlon Baliuag','Dan Mark Anthony Bautista','Jose Carlos Malavega',
-                'Lawrence Galoso','Lance Villaruel','Jesley Cubol','Jennifer Ramos'],
-    'DEV': ['Pedro Catolico','Rommel Tupaz','Charlito Arcena','Russell Benjamin','Justine Balbido',
-                'Lorenzo Luiz Tungol','Catherine de Castro','Regine Theresa Tiu'],
-    'Bridge': ['Jessica Bascos','Jezza Jezreel Jaraula'],
-    'POC TEAM': ['Angelica Tanate','Vincent Gadier','Alvin Bayhon','Jumar Vere','Diana Vosotros','Alvin Melo'],
+    'JumHon': ['Marc Anos','Devi Demayo','Jervin Saminado','Jessica Bascos','Art Joseph Petras',
+                'Charlie Fortez','Julius Sarmiento','Raymond Aurelio','Alvin Bayhon'],
+    'MeloAce': ['Gian Carlo Silang','Dan Mark Anthony Bautista','Charlon Baliuag','Jose Carlos Malavega',
+                'Lance Villaruel','Jesley Cubol','Jennifer Ramos'],
+    'DEV': ['Vincent Gadier','Pedro Catolico','Regine Theresa Tiu','Lorenzo Luiz Tungol','Rommel Tupaz',
+                'Edward Velasco','Charlito Arcena','Russell Benjamin','Catherine de Castro','Diana Vosotros',
+                'Jezza Jezreel Jaraula'],
+    'POC TEAM': ['Angelica Tanate','Jumar Vere','Jonathan Jabonete'],
   };
+
   const CL_ALL_TMS = Object.entries(CL_ROSTER).flatMap(([squad,names]) => names.map(name => ({name,squad})));
 
   const CL_CADENCE = [
@@ -7623,7 +7621,7 @@ ${notes}`;
       html += `<th style="padding:8px 10px;background:${NAVY};color:#fff;white-space:nowrap;text-align:center">Week ${i+1}<br><span style="font-weight:400;color:#9FB4DA;font-size:10px">${getWeekDateRange(mon)}</span></th>`;
     });
     html += `<th style="padding:8px 10px;background:${NAVY};color:#fff;text-align:center">Done</th></tr></thead><tbody>`;
-    ['JumHon','MeloAce','DEV','Bridge'].forEach(sq => {
+    ['JumHon','MeloAce','DEV'].forEach(sq => {
       const reps = CL_ROSTER[sq] || [];
       html += `<tr><td colspan="${weeks.length+2}" style="background:#EEF3FB;color:${NAVY};font-weight:800;padding:6px 10px;font-size:11px;letter-spacing:.5px">${sq}</td></tr>`;
       reps.forEach(rep => {
@@ -9300,7 +9298,7 @@ Return ONLY valid JSON (no markdown, no commentary) with this exact shape:
   function scPostAck(rec){ if (!SC_ACK_POST_URL || !SC_ACK_CSV_URL) return; try { fetch(SC_ACK_POST_URL, { method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify(rec) }); } catch (e) {} }
 
   let _scModel = null, _scAI = {}, _scMembers = [], _scSelId = '', _scGenKey = '';
-  const SC_TL_OPTS = [{v:'',t:'All teams'},{v:'dijumhon',t:'Jumar Vere — JumHon'},{v:'meloace',t:'Angelica Tanate — MeloAce'},{v:'ev',t:'Jonathan Jabonete — DEV'},{v:'bridge',t:'Jonathan Jabonete — Bridge'}];
+  const SC_TL_OPTS = [{v:'',t:'All teams'},{v:'dijumhon',t:'Jumar Vere — JumHon'},{v:'meloace',t:'Angelica Tanate — MeloAce'},{v:'ev',t:'Jonathan Jabonete — DEV'}];
   // Team leader who actually line-manages a given team, derived from the picker above.
   function scTLName(teamId){ const o=SC_TL_OPTS.find(x=>x.v===teamId && x.v); return o ? o.t.split('—')[0].trim() : ''; }
 
