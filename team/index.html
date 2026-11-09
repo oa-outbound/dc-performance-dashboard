@@ -469,6 +469,41 @@
   // can never disagree. Nothing else is loaded: no attendance feed, no coaching log, no
   // scorecards. This page is for the floor, and those are between a rep and their leader.
   const DC_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSisLiJWdncrB-dDPNI0JGqSTbBQl5n5OAel1Epyr7DAsonyVAa6HSFCVXdA4_uMTbnBgGawkyX6DYh/pub?gid=0&single=true&output=csv';
+  // DC numbers come from the Outbound Dashboard feed (DC Feed sheet, refreshed every 30 min by
+  // Rochelle's Apps Script), counted by MEETING date in Manila time. Add ?source=masterfile to
+  // the page URL to see the old hand-entered masterfile (counted by booking date) for comparison.
+  const DC_FEED_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRqF61wqBJ2Njdpsdiq6chRlUXRLlIqxmJz9RNi07l8QDe7PTLszv5849zADDBAmrfV7fNBUYakfcar/pub?gid=1895120484&single=true&output=csv';
+  const DC_SOURCE = /[?&]source=masterfile\b/i.test(location.search) ? 'masterfile' : 'feed';
+  const DC_SOURCE_LABEL = DC_SOURCE === 'feed' ? 'Outbound Dashboard, by meeting date' : 'Masterfile, by booking date';
+  // How each feed outcome maps onto the show-up statuses every view already understands:
+  // 'yes' = lead showed, 'no' / 'cancelled' = held or cancelled without the lead, '' = not yet held.
+  const FEED_STATUS = {
+    both_attended: 'yes', lead_attended: 'yes', both_attended_unqualified: 'yes',
+    bpo_attended: 'no', no_show: 'no', invalid: 'no',
+    canceled_by_lead: 'cancelled', canceled_by_partner: 'cancelled', canceled_unattributed: 'cancelled',
+    scheduled: '', rescheduled: '', no_outcome: ''
+  };
+  // Expands each (date, SDR) feed row into one row per DC, in the same shape the masterfile
+  // parser produces, so every page keeps working unchanged. The feed has no lead count, so
+  // sp1 stays blank and lead figures read as zero in feed mode.
+  function parseFeedCSV(text) {
+    const lines = splitCsvRows(text.trim());
+    if (lines.length < 2) return [];
+    const h = splitLine(lines[0]).map(x => x.trim().toLowerCase());
+    const di = h.indexOf('date'), si = h.indexOf('sdr');
+    const cols = Object.keys(FEED_STATUS).map(k => [h.indexOf(k), FEED_STATUS[k]]).filter(p => p[0] >= 0);
+    const out = [];
+    for (const line of lines.slice(1)) {
+      const c = splitLine(line);
+      const date = (c[di] || '').trim(), sdr = (c[si] || '').trim();
+      if (!date || !sdr || sdr === '(unassigned)') continue;
+      for (const [i, st] of cols) {
+        const n = parseInt(c[i], 10) || 0;
+        for (let j = 0; j < n; j++) out.push({ rawDate: date, agent: sdr, sp1: '', sp2: 'DC', sp1status: '', sp2status: st });
+      }
+    }
+    return out;
+  }
   const MONTHLY_TARGET = 40;   // DCs per rep per month
   const WEEKLY_TARGET  = 10;
   const SHOWUP_GOAL    = 80;   // %, the passing mark used in appraisals
@@ -505,10 +540,12 @@
 
   async function loadAll() {
     try {
-      rawRows = parseCSV(await fetchCsv(DC_CSV_URL + '&t=' + Date.now()));
+      rawRows = DC_SOURCE === 'feed'
+        ? parseFeedCSV(await fetchCsv(DC_FEED_CSV_URL + '&t=' + Date.now()))
+        : parseCSV(await fetchCsv(DC_CSV_URL + '&t=' + Date.now()));
       $('banner').classList.remove('show');
       $('stamp').textContent = 'Updated ' + new Date().toLocaleTimeString('en-US',
-        { hour: 'numeric', minute: '2-digit' });
+        { hour: 'numeric', minute: '2-digit' }) + ' · ' + DC_SOURCE_LABEL;
       buildMonthPick();
       renderAll();
       loadPartners();
@@ -699,7 +736,7 @@
     const prog = pct(dc, teamTarget);
     const el = elapsedPct(dates);
     $('floor').innerHTML =
-      stat(dc, 'DCs booked', people.length + ' SDRs on the floor')
+      stat(dc, DC_SOURCE === 'feed' ? 'DCs (meeting date)' : 'DCs booked', people.length + ' SDRs on the floor')
       + stat(prog === null ? '—' : prog + '%', 'of target',
              dc + ' of ' + teamTarget + ' (' + target + ' each)'
              + (el !== null && el < 100 ? ' · ' + el + '% of the period gone' : ''),
