@@ -1111,7 +1111,13 @@
               <textarea id="clWkNotes" class="cl-input" rows="5" placeholder="e.g. Monthly review with Jesley. October SUR 49%, goal 60% in November. Leads going quiet after booking, invites not accepted. Agreed: confirm invite acceptance within 1 hour, full reminder cadence..."></textarea>
               <div style="margin-top:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
                 <button id="clBtnGenerate" onclick="clGenerateWeekly()" style="background:#E91E8C;color:#fff;border:none;border-radius:8px;padding:9px 20px;font-size:13px;font-weight:700;cursor:pointer">Draft with AI ✨</button>
+                <button onclick="clCopyPrompt('grow')" class="cl-chip" title="No API key needed: paste into Claude.ai or Gemini">Copy prompt for Claude / Gemini</button>
                 <span id="clGenerateStatus" style="font-size:11px"></span>
+              </div>
+              <div id="clWkAnswerWrap" style="display:none;margin-top:8px">
+                <label class="cl-label">Paste the AI answer <span style="font-weight:400;color:var(--slate)">— the whole reply from Claude.ai or Gemini</span></label>
+                <textarea id="clWkAnswer" class="cl-input" rows="3" placeholder="{ &quot;goal&quot;: ... }"></textarea>
+                <button onclick="clFillFromAnswer('grow')" class="cl-chip on-navy" style="margin-top:6px">Fill fields</button>
               </div>
             </div>
             <div class="cl-field">
@@ -1168,7 +1174,13 @@
               <textarea id="clBfNotes" class="cl-input" rows="5" placeholder="e.g. Devi booked Tom Wolfenden (Konstruct) 1 Oct with Smartsourcing. Didn't probe the API role, took 1-2 wk timeline at face value, reframed company size 3 to 5-10. Partner disputed, tagged unqualified, SUR 85% to 80%. Good: rebuttal on email request, asked open question on roles..."></textarea>
               <div style="margin-top:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
                 <button id="clBtnGenerateBEEF" onclick="clGenerateBEEF()" style="background:#E91E8C;color:#fff;border:none;border-radius:8px;padding:9px 20px;font-size:13px;font-weight:700;cursor:pointer">Draft with AI ✨</button>
+                <button onclick="clCopyPrompt('beef')" class="cl-chip" title="No API key needed: paste into Claude.ai or Gemini">Copy prompt for Claude / Gemini</button>
                 <span id="clBEEFStatus" style="font-size:11px"></span>
+              </div>
+              <div id="clBfAnswerWrap" style="display:none;margin-top:8px">
+                <label class="cl-label">Paste the AI answer <span style="font-weight:400;color:var(--slate)">— the whole reply from Claude.ai or Gemini</span></label>
+                <textarea id="clBfAnswer" class="cl-input" rows="3" placeholder="{ &quot;topic&quot;: ... }"></textarea>
+                <button onclick="clFillFromAnswer('beef')" class="cl-chip on-navy" style="margin-top:6px">Fill fields</button>
               </div>
             </div>
             <div class="cl-field">
@@ -7990,20 +8002,33 @@ ${notes}`;
   // the GROW fields, filled into the form for the coach to review. The log then builds
   // from the fields, exactly as when typed by hand.
   async function clGenerateWeekly() {
+    const P = clGROWPrompt(); if (!P) return;
+    const btn = $('clBtnGenerate'), st = $('clGenerateStatus');
+    btn.disabled = true; btn.textContent = 'Drafting…'; st.style.color = 'var(--slate)';
+    st.textContent = P.isTranscript ? 'Reading the transcript, this can take up to a minute…' : '';
+    try {
+      const data = await clAiRelay({ model: P.isTranscript ? 'claude-sonnet-4-6' : 'claude-haiku-4-5-20251001', max_tokens: 3000,
+                                     messages: [{ role: 'user', content: P.prompt }] },
+                                   P.isTranscript ? 2 : undefined, P.isTranscript ? 120000 : undefined);
+      clGROWApply(clParseJson(clAiText(data).trim()));
+      st.style.color = '#0A7A0A'; st.textContent = '✓ Drafted into the fields below. Review each one before sending.';
+    } catch (err) {
+      st.style.color = '#C00'; st.textContent = 'Error: ' + err.message + clNoKeyHint(err);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Draft with AI ✨';
+    }
+  }
+  function clGROWPrompt() {
     const fv = id => ($(id) && $(id).value || '').trim();
     const notes = fv('clWkNotes');
     const typed = [['Strengths / observation', fv('clWkObs')], ['Goal', fv('clWkGoal')], ['Reality', fv('clWkReality')],
                    ['Opportunity', fv('clWkOptions')], ['Way Forward', fv('clWkWill')]].filter(p => p[1]);
-    if (!notes && !typed.length) { alert('Paste your notes or the Fireflies transcript, or fill in at least one GROW field.'); return; }
-    if (notes.length > 200000) { alert('That transcript is very long. Paste only the coaching session (under about 200,000 characters).'); return; }
+    if (!notes && !typed.length) { alert('Paste your notes or the Fireflies transcript, or fill in at least one GROW field.'); return null; }
+    if (notes.length > 200000) { alert('That transcript is very long. Paste only the coaching session (under about 200,000 characters).'); return null; }
     const name = fv('clTmName');
     const first = (name.match(/[“"]([^”"]+)[”"]/) || [])[1] || name.split(/\s+/)[0] || 'the SDR';
     const coachName = fv('clWkCoachName') || 'the coach';
     const isTranscript = notes.length > 4000 || /^\s*\S.{0,40}\s(\d{1,2}:)?\d{1,2}:\d{2}\b/m.test(notes);
-    const btn = $('clBtnGenerate'), st = $('clGenerateStatus');
-    btn.disabled = true; btn.textContent = 'Drafting…'; st.style.color = 'var(--slate)';
-    st.textContent = isTranscript ? 'Reading the transcript, this can take up to a minute…' : '';
-
     const input = (notes ? (isTranscript
         ? `TRANSCRIPT of the coaching session (likely exported from Fireflies, with speaker names and timestamps), possibly with the coach's notes added. The coach is ${coachName} and the SDR is ${first}; other speakers may be team leads or QA. Use only what was actually said. Ignore greetings, small talk, audio checks and filler.\n\n${notes}`
         : `COACH'S NOTES:\n${notes}`) : '')
@@ -8029,12 +8054,10 @@ Return ONLY valid JSON (no markdown):
   "wayForward": [{"title": "Action plan headline", "steps": ["Concrete step", "Concrete step"]}]
 }
 Give 2 to 4 strengths only if the input supports them (else an empty array), 2 to 4 opportunity items, and 2 or 3 wayForward plans with 1 to 3 steps each.`;
-
-    try {
-      const data = await clAiRelay({ model: isTranscript ? 'claude-sonnet-4-6' : 'claude-haiku-4-5-20251001', max_tokens: 3000,
-                                     messages: [{ role: 'user', content: prompt }] },
-                                   isTranscript ? 2 : undefined, isTranscript ? 120000 : undefined);
-      const g = clParseJson(clAiText(data).trim());
+    return { prompt, isTranscript };
+  }
+  function clGROWApply(g) {
+    const fv = id => ($(id) && $(id).value || '').trim();
       const L = x => Array.isArray(x) ? x : (x ? [x] : []);
       const set = (id, val) => { if ($(id)) $(id).value = clDeDash(val || ''); };
       if (g.topic && !fv('clWkTopic')) set('clWkTopic', g.topic);
@@ -8045,12 +8068,32 @@ Give 2 to 4 strengths only if the input supports them (else an empty array), 2 t
       set('clWkWill', L(g.wayForward).map((w, i) =>
         `${i + 1}. ${String(w.title || '').replace(/[.:]?$/, '.')}\n` + L(w.steps).map(x => '- ' + x).join('\n')).join('\n\n'));
       window._clGeneratedWeekly = null;   // the log builds from the fields from here on
-      st.style.color = '#0A7A0A'; st.textContent = '✓ Drafted into the fields below. Review each one before sending.';
-      clRender();
+    clRender();
+  }
+
+  // ── No-key route: any chat AI the coach already has (Claude.ai, Gemini) ──
+  function clNoKeyHint(err) {
+    return /credit|api key|authentication|401|403/i.test(String(err && err.message))
+      ? ' Use "Copy prompt" instead: paste it into Claude.ai or Gemini, then paste the answer back here.' : '';
+  }
+  async function clCopyPrompt(kind) {
+    const P = kind === 'beef' ? clBEEFPrompt() : clGROWPrompt(); if (!P) return;
+    const st = $(kind === 'beef' ? 'clBEEFStatus' : 'clGenerateStatus');
+    try { await navigator.clipboard.writeText(P.prompt); } catch (e) { alert('Could not copy. Select the text in the box and copy it manually.'); return; }
+    st.style.color = '#0A7A0A';
+    st.textContent = '✓ Prompt copied. Paste it into Claude.ai or Gemini, then paste the whole answer into the box below.';
+    $(kind === 'beef' ? 'clBfAnswerWrap' : 'clWkAnswerWrap').style.display = '';
+  }
+  function clFillFromAnswer(kind) {
+    const box = $(kind === 'beef' ? 'clBfAnswer' : 'clWkAnswer');
+    const st = $(kind === 'beef' ? 'clBEEFStatus' : 'clGenerateStatus');
+    try {
+      const g = clParseJson(box.value);
+      if (kind === 'beef') clBEEFApply(g); else clGROWApply(g);
+      st.style.color = '#0A7A0A'; st.textContent = '✓ Fields filled from the AI answer. Review each one before sending.';
+      box.value = '';
     } catch (err) {
-      st.style.color = '#C00'; st.textContent = 'Error: ' + err.message;
-    } finally {
-      btn.disabled = false; btn.textContent = 'Draft with AI ✨';
+      st.style.color = '#C00'; st.textContent = 'Could not read that answer: ' + err.message + ' Paste the full reply, including the curly brackets.';
     }
   }
 
@@ -8505,20 +8548,18 @@ Return ONLY valid JSON (no markdown, no commentary) with this exact shape:
     const el = $('clWkReality'); el.value = el.value.trim() ? txt + '\n\n' + el.value.trim() : txt;
   }
 
-  // BEEF: rough notes -> every section, filled into the form for the coach to review.
-  async function clGenerateBEEF() {
+  // BEEF: rough notes or a Fireflies transcript -> every section, filled into the form for the
+  // coach to review. The prompt and the fill step are shared by "Draft with AI" (relay, needs
+  // the API key) and the no-key route (copy the prompt into Claude.ai or Gemini, paste the
+  // answer back).
+  function clBEEFPrompt() {
     const notes = ($('clBfNotes').value || '').trim();
-    if (!notes) { alert('Type or paste your notes or the Fireflies transcript first.'); return; }
-    if (notes.length > 200000) { alert('That transcript is very long. Paste only the coaching session (under about 200,000 characters).'); return; }
-    // A pasted Fireflies transcript is long and conversational; the stronger model pulls the
-    // coaching points out of it more reliably. Short notes stay on the fast model.
+    if (!notes) { alert('Type or paste your notes or the Fireflies transcript first.'); return null; }
+    if (notes.length > 200000) { alert('That transcript is very long. Paste only the coaching session (under about 200,000 characters).'); return null; }
     const isTranscript = notes.length > 4000 || /^\s*\S.{0,40}\s(\d{1,2}:)?\d{1,2}:\d{2}\b/m.test(notes);
     const coachName = ($('clBfCoach') && $('clBfCoach').value) || 'the coach';
     const name = $('clTmName').value.trim();
     const first = (name.match(/[“"]([^”"]+)[”"]/) || [])[1] || name.split(/\s+/)[0] || 'the SDR';
-    const btn = $('clBtnGenerateBEEF'), st = $('clBEEFStatus');
-    btn.disabled = true; btn.textContent = 'Drafting…'; st.style.color = 'var(--slate)';
-    st.textContent = isTranscript ? 'Reading the transcript, this can take up to a minute…' : '';
     const prompt = `You are writing a formal BEEF coaching log (Behavior, Example, Effect, Future) for ${first}, an outbound SDR (Client Success Executive) at Outsource Accelerator, an offshore staffing marketplace. SDRs qualify leads by phone and book discovery calls (DCs) between the lead and partner BPOs. Qualification checks: full-time role, hiring within 1 to 2 months, open to offshore, decision maker, company size.
 
 RULES:
@@ -8547,11 +8588,9 @@ Return ONLY valid JSON (no markdown):
   "note": "Optional additional note from the notes (e.g. what is not held against the SDR), else empty string"
 }
 Give 2 to 4 strengths only if the notes support them, 2 to 4 example points, and 2 or 3 action plans with 1 to 3 steps each.`;
-    try {
-      const data = await clAiRelay({ model: isTranscript ? 'claude-sonnet-4-6' : 'claude-haiku-4-5-20251001', max_tokens: 3000,
-                                     messages: [{ role: 'user', content: prompt }] },
-                                   isTranscript ? 2 : undefined, isTranscript ? 120000 : undefined);
-      const g = clParseJson(clAiText(data).trim());
+    return { prompt, isTranscript };
+  }
+  function clBEEFApply(g) {
       const L = x => Array.isArray(x) ? x : (x ? [x] : []);
       const set = (id, val) => { if ($(id)) $(id).value = clDeDash(val || ''); };
       if (g.topic) set('clBfTopic', g.topic);
@@ -8564,10 +8603,21 @@ Give 2 to 4 strengths only if the notes support them, 2 to 4 example points, and
       set('clBfFuture', L(g.future).map((f, i) =>
         `${i + 1}. ${String(f.title || '').replace(/[.:]?$/, '.')}\n` + L(f.steps).map(x => '- ' + x).join('\n')).join('\n\n'));
       if (g.note) set('clBfNote', g.note);
+    clRender();
+  }
+  async function clGenerateBEEF() {
+    const P = clBEEFPrompt(); if (!P) return;
+    const btn = $('clBtnGenerateBEEF'), st = $('clBEEFStatus');
+    btn.disabled = true; btn.textContent = 'Drafting…'; st.style.color = 'var(--slate)';
+    st.textContent = P.isTranscript ? 'Reading the transcript, this can take up to a minute…' : '';
+    try {
+      const data = await clAiRelay({ model: P.isTranscript ? 'claude-sonnet-4-6' : 'claude-haiku-4-5-20251001', max_tokens: 3000,
+                                     messages: [{ role: 'user', content: P.prompt }] },
+                                   P.isTranscript ? 2 : undefined, P.isTranscript ? 120000 : undefined);
+      clBEEFApply(clParseJson(clAiText(data).trim()));
       st.style.color = '#0A7A0A'; st.textContent = '✓ Drafted. Review each section before sending.';
-      clRender();
     } catch (err) {
-      st.style.color = '#C00'; st.textContent = 'Error: ' + err.message;
+      st.style.color = '#C00'; st.textContent = 'Error: ' + err.message + clNoKeyHint(err);
     } finally {
       btn.disabled = false; btn.textContent = 'Draft with AI ✨';
     }
