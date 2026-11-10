@@ -9804,11 +9804,13 @@ ${html}
   const SC_RATING_COLOR = { 'Needs Improvement':'#C0362C', 'Below Expectations':'#C97000',
     'Meeting Expectations':'#1A2DB5', 'Above Expectations':'#0E9F6E', 'Exceeding Expectations':'#0B6E4F' };
   const SC_LEVERS = [
-    { key:'leads',   label:'Leads booked / day', fmt:v=>v.toFixed(2), round:v=>Math.round(v*100)/100, below:0.39, meeting:0.50, above:0.59, exceed:0.59, exceedIncl:false, main:true },
-    { key:'showup',  label:'Show-up rate (RAW)', fmt:v=>Math.round(v)+'%', round:v=>Math.round(v), below:60, meeting:65, above:67, exceed:67, exceedIncl:false, main:true },
-    { key:'close',   label:'Close rate (booked ÷ connected)', fmt:v=>v.toFixed(1)+'%', round:v=>Math.round(v*10)/10, below:1.1, meeting:1.2, above:1.3, exceed:1.4, exceedIncl:true },
-    { key:'connect', label:'Connect rate', fmt:v=>v.toFixed(1)+'%', round:v=>Math.round(v*10)/10, below:10, meeting:12, above:14, exceed:14, exceedIncl:false },
-    { key:'dials',   label:'Dials / day', fmt:v=>String(Math.round(v)), round:v=>Math.round(v), passLine:350 }
+    // Values show 2 decimals, as on JC's Outbound Dashboard (88.89%, 13.63%, 0.57, 291.86); targets
+    // keep their own format (tfmt). Ratings use the same 2-decimal figure the SDR sees.
+    { key:'leads',   label:'Leads booked / day', fmt:v=>v.toFixed(2), tfmt:v=>v.toFixed(2)+' a day', round:v=>Math.round(v*100)/100, below:0.39, meeting:0.50, above:0.59, exceed:0.59, exceedIncl:false, main:true },
+    { key:'showup',  label:'Show-up rate (RAW)', fmt:v=>v.toFixed(2)+'%', tfmt:v=>v+'%', round:v=>Math.round(v*100)/100, below:60, meeting:65, above:67, exceed:67, exceedIncl:false, main:true },
+    { key:'close',   label:'Close rate (booked ÷ connected)', fmt:v=>v.toFixed(2)+'%', tfmt:v=>v+'%', round:v=>Math.round(v*100)/100, below:1.1, meeting:1.2, above:1.3, exceed:1.4, exceedIncl:true },
+    { key:'connect', label:'Connect rate', fmt:v=>v.toFixed(2)+'%', tfmt:v=>v+'%', round:v=>Math.round(v*100)/100, below:10, meeting:12, above:14, exceed:14, exceedIncl:false },
+    { key:'dials',   label:'Dials / day', fmt:v=>v.toFixed(2), round:v=>Math.round(v*100)/100, passLine:350 }
   ];
   function scRateLever(L, v){
     if (v==null || isNaN(v)) return null;
@@ -9822,7 +9824,7 @@ ${html}
     else label='Needs Improvement';
     return { label, color: SC_RATING_COLOR[label] };
   }
-  function scTargetTxt(L){ return L.passLine!=null ? L.passLine+' a day' : L.fmt(L.meeting)+(L.key==='leads'?' a day':''); }
+  function scTargetTxt(L){ return L.passLine!=null ? L.passLine+' a day' : L.tfmt(L.meeting); }
   // One row per lever: value (null = no data yet), rating, Meeting Expectations target.
   function scLevers(M){
     return SC_LEVERS.map(L=>{
@@ -9900,7 +9902,7 @@ ${html}
     }
     const over=[];
     if (M.expectedMtd>0 && M.booked>=M.expectedMtd) over.push({v:M.booked-M.expectedMtd, t:'you are on or ahead of your pro-rated DC pace'});
-    if (M.suRateRaw!=null && M.suRateRaw>=0.65) over.push({v:(M.suRateRaw-0.65)*100, t:`your show-up rate of ${Math.round(M.suRateRaw*100)}% is at or above the 65% Meeting Expectations mark`});
+    if (M.suRateRaw!=null && M.suRateRaw>=0.65) over.push({v:(M.suRateRaw-0.65)*100, t:`your show-up rate of ${(M.suRateRaw*100).toFixed(2)}% is at or above the 65% Meeting Expectations mark`});
     if (M.attPct!=null && M.attPct>=95) over.push({v:M.attPct-95, t:`your attendance of ${Math.round(M.attPct)}% is strong`});
     if (over.length){ over.sort((a,b)=>b.v-a.v); return 'What is working: ' + over[0].t + '.'; }
     if (p && M.booked>=p.booked_dcs && (M.attPct==null || p.attendance_pct==null || M.attPct>=p.attendance_pct)) return 'You have held steady with no metric slipping versus last week. Let us build from that base.';
@@ -9917,7 +9919,7 @@ ${html}
     if (p){ const d=M.booked-p.booked_dcs; wow = d>0?`, up ${d} DC${d===1?'':'s'} from last week`:''; }
     // paired bright spot (a performance metric only, attendance is a baseline) and the main thing to fix (any metric)
     const mets=[{k:'dc', v:M.expectedMtd>0?M.booked/M.expectedMtd:1, good:M.paceGap>=0, pos:'your booked DC pace', neg:'your booked DC volume'}];
-    if (M.scheduled>0) mets.push({k:'su', v:M.suRateRaw, good:M.suRateRaw>=0.65, pos:`your ${Math.round(M.suRateRaw*100)}% show-up rate`, neg:`your ${Math.round(M.suRateRaw*100)}% show-up rate`});
+    if (M.scheduled>0) mets.push({k:'su', v:M.suRateRaw, good:M.suRateRaw>=0.65, pos:`your ${(M.suRateRaw*100).toFixed(2)}% show-up rate`, neg:`your ${(M.suRateRaw*100).toFixed(2)}% show-up rate`});
     if (M.attPct!=null) mets.push({k:'att', v:M.attPct/100, good:M.attPct>=95, pos:`your ${Math.round(M.attPct)}% attendance`, neg:`your ${Math.round(M.attPct)}% attendance`});
     const goodPerf = mets.filter(m=>(m.k==='dc'||m.k==='su') && m.good).sort((a,b)=>b.v-a.v)[0];
     const worst = [...mets].sort((a,b)=>a.v-b.v)[0];
@@ -10059,7 +10061,7 @@ ${voice}
 NAME: ${M.name} (team ${M.team})
 LEVER RATINGS against the team targets (use these exact labels, never "Bad/Okay/Good/Better"): ${scLeverSummary(M)}. Leads booked per day and show-up rate are the main levers. Meeting Expectations: 0.50 leads booked a day, 65% show-up, 1.2% close rate, 350 dials a day.
 Booked DCs: ${M.booked} of ${M.target} (steady pace by now is ${M.expectedMtd}, so ${M.paceGap>=0?'ahead by '+M.paceGap:'behind by '+Math.abs(M.paceGap)}), ${M.remaining} working days left.
-Show-up: ${M.scheduled>0?Math.round(M.suRateRaw*100)+'% ('+M.showed+' of '+M.scheduled+' scheduled showed)':'no scheduled DCs yet'}.
+Show-up: ${M.scheduled>0?(M.suRateRaw*100).toFixed(2)+'% ('+M.showed+' of '+M.scheduled+' scheduled showed)':'no scheduled DCs yet'}.
 Attendance MTD: ${M.attPct!=null?Math.round(M.attPct)+'%':'not available'}${ab?`, made up of ${ab.present} present, ${ab.late} late, ${ab.absent} absent, ${ab.undertime} undertime across ${ab.scheduled} logged days. On-time (present only, not late): ${Math.round(ab.present/ab.scheduled*100)}%`:''}.
 Trajectory: ${wowTxt}.
 Coaching this month: ${M.sessions} session(s)${M.topics.length?', topics: '+M.topics.join(', '):''}.
@@ -10141,8 +10143,8 @@ Write in a natural human voice (not robotic, no meta-commentary about being an A
     cards.push(card('Your levers', scLeverTableHtml(M, false) + `<div style="font-size:11.5px;color:${SLATE};margin-top:8px">Leads booked per day and show-up rate are your main levers. Ratings: Needs Improvement, Below Expectations, Meeting Expectations, Above Expectations, Exceeding Expectations.</div>`));
     cards.push(card('Booked DCs and pace', `<b>Booked:</b> ${M.booked} of a ${M.target} monthly target. At the steady pace of ${DAILY_TARGET} DCs a day you would be around <b>${M.expectedMtd}</b> by now, so you are ${paceMark}.${paceCallout}`));
     if (M.scheduled>0){
-      let line=`<b>Show-up rate:</b> ${Math.round(M.suRateRaw*100)}% (${M.showed} DC${M.showed===1?'':'s'} showed).`;
-      if (M.nc>0 && M.suRateAdj!=null) line+=` <b>Adjusted:</b> ${Math.round(M.suRateAdj*100)}% excluding ${M.nc} SP-side cancellation${M.nc===1?'':'s'}${M.ncReason?' ('+esc(M.ncReason)+')':''}.`;
+      let line=`<b>Show-up rate:</b> ${(M.suRateRaw*100).toFixed(2)}% (${M.showed} DC${M.showed===1?'':'s'} showed).`;
+      if (M.nc>0 && M.suRateAdj!=null) line+=` <b>Adjusted:</b> ${(M.suRateAdj*100).toFixed(2)}% excluding ${M.nc} SP-side cancellation${M.nc===1?'':'s'}${M.ncReason?' ('+esc(M.ncReason)+')':''}.`;
       cards.push(card('Show-up', line));
     }
     if (M.attPct!=null){ const ab=M.attBreak; const abTxt = ab ? ` (${ab.present} present, ${ab.late} late, ${ab.absent} absent${ab.undertime?', '+ab.undertime+' undertime':''} of ${ab.scheduled} logged days)` : ''; const onTime = (ab && ab.late>0) ? ` <b>On-time (not late): ${Math.round(ab.present/ab.scheduled*100)}%</b>.` : ''; cards.push(card('Attendance', `<b>Attendance MTD:</b> ${Math.round(M.attPct)}%${abTxt}.${onTime}`)); }
@@ -10178,7 +10180,7 @@ Write in a natural human voice (not robotic, no meta-commentary about being an A
     P.push('BOOKED DCS AND PACE');
     P.push(`Booked: ${M.booked} of ${M.target}. At ${DAILY_TARGET} DCs/day you would be around ${M.expectedMtd} by now, so you are ${M.paceGap>=0?'ahead of that by '+M.paceGap:Math.abs(M.paceGap)+' below that'}.`);
     if (M.perDayNeeded!=null) P.push(M.stretch ? `Reaching the full ${M.target} would need about ${M.perDayNeeded}/day over the ${M.remaining} day(s) left, a stretch this late. Finish as strong as you can; pace resets next month.` : `To finish at target, aim for ${M.perDayNeeded} booked DC(s) per working day over the ${M.remaining} day(s) left.`);
-    if (M.scheduled>0){ let l=`SHOW-UP: ${Math.round(M.suRateRaw*100)}% (${M.showed} showed).`; if (M.nc>0 && M.suRateAdj!=null) l+=` Adjusted ${Math.round(M.suRateAdj*100)}% excluding ${M.nc} SP-side cancellation(s)${M.ncReason?' ('+M.ncReason+')':''}.`; P.push(''); P.push(l); }
+    if (M.scheduled>0){ let l=`SHOW-UP: ${(M.suRateRaw*100).toFixed(2)}% (${M.showed} showed).`; if (M.nc>0 && M.suRateAdj!=null) l+=` Adjusted ${(M.suRateAdj*100).toFixed(2)}% excluding ${M.nc} SP-side cancellation(s)${M.ncReason?' ('+M.ncReason+')':''}.`; P.push(''); P.push(l); }
     if (M.attPct!=null){ const ab=M.attBreak; P.push(''); P.push(`ATTENDANCE MTD: ${Math.round(M.attPct)}%${ab?` (${ab.present} present, ${ab.late} late, ${ab.absent} absent${ab.undertime?', '+ab.undertime+' undertime':''} of ${ab.scheduled} logged days)`:''}.${(ab&&ab.late>0)?` On-time (not late): ${Math.round(ab.present/ab.scheduled*100)}%.`:''}`); }
     P.push(''); P.push('NEXT STEP'); P.push(nextStep);
     if (ai){ P.push(''); P.push('PERFORMANCE REVIEW'); P.push(ai.summary); (ai.suggestions||[]).forEach(s=>P.push('- '+s)); }
