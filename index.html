@@ -9840,7 +9840,7 @@ ${html}
   }
   // Activity per SDR per day (dials, connects, leads booked) from the Outbound Dashboard, via the
   // DC Feed sheet's SDR Activity tab once JC exposes it. Empty URL = levers show "waiting for data".
-  const SC_ACTIVITY_CSV_URL = '';   // published CSV of the DC Feed sheet's "SDR Activity" tab
+  const SC_ACTIVITY_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRqF61wqBJ2Njdpsdiq6chRlUXRLlIqxmJz9RNi07l8QDe7PTLszv5849zADDBAmrfV7fNBUYakfcar/pub?gid=1197545403&single=true&output=csv';   // published CSV of the DC Feed sheet's "SDR Activity" tab
   let _scActRows = null;
   async function scLoadActivity(){
     if (!SC_ACTIVITY_CSV_URL || _scActRows) return;
