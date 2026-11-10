@@ -8642,21 +8642,35 @@ Give 2 to 4 strengths only if the notes support them, 2 to 4 example points, and
     w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(fileTitle)}</title>
 <style>
   @page { size: letter landscape; margin: 0.4in 0.45in 0.5in;
+    /* Claiming the top margin boxes stops Chrome printing its own date/title header there. */
+    @top-left { content: "\\00a0"; } @top-center { content: "\\00a0"; } @top-right { content: "\\00a0"; }
     @bottom-left { content: "${footer}"; font: 8pt Helvetica, Arial, sans-serif; color: #444; }
     @bottom-right { content: "Page " counter(page) " of " counter(pages); font: 8pt Helvetica, Arial, sans-serif; color: #444; } }
   html, body { margin: 0; background: #fff; }
-  @media print { body { zoom: 0.84; } body > table { max-width: none !important; width: 100% !important; } }
+  body > table { max-width: none !important; width: 100% !important; }
   body { -webkit-print-color-adjust: exact; print-color-adjust: exact; font-family: Helvetica, Arial, sans-serif; }
   table { page-break-inside: auto; } tr, img { page-break-inside: avoid; }
   .bar { padding: 10px 14px; background: #0C1F42; color: #fff; font: 13px Helvetica, Arial, sans-serif; }
   @media print { .bar { display: none; } }
 </style></head><body>
-<div class="bar">Choose <b>Save as PDF</b> as the destination, then Save. The file is named for you.</div>
+<div class="bar">Choose <b>Save as PDF</b> as the destination, then Save. The file is named for you. If a date or web address shows at the top or bottom, open <b>More settings</b> and untick <b>Headers and footers</b>.</div>
 ${html}
 <script>
   (function () {
     var imgs = Array.prototype.slice.call(document.images), left = imgs.length;
-    function go() { setTimeout(function () { window.focus(); window.print(); }, 200); }
+    // Shrink to fit one Letter-landscape page (10.1in x 7.6in printable = 970 x 730 CSS px),
+    // never below 70%. A log too long even then runs to a second page, with the
+    // acknowledgement block kept whole.
+    function fit() {
+      var doc = document.querySelector('body > table'); if (!doc) return;
+      var W = 965, H = 722, steps = [0.86, 0.82, 0.78, 0.74, 0.70], z = 0.70;
+      for (var i = 0; i < steps.length; i++) {
+        document.body.style.zoom = steps[i]; document.body.style.width = (W / steps[i]) + 'px';
+        if (doc.offsetHeight * steps[i] <= H) { z = steps[i]; break; }
+      }
+      document.body.style.zoom = z; document.body.style.width = (W / z) + 'px';
+    }
+    function go() { fit(); setTimeout(function () { window.focus(); window.print(); }, 200); }
     if (!left) return go();
     imgs.forEach(function (im) { if (im.complete) { if (--left === 0) go(); } else { im.onload = im.onerror = function () { if (--left === 0) go(); }; } });
   })();
