@@ -9798,7 +9798,7 @@ ${html}
   // Under the Below number = Needs Improvement. Close rate: Above 1.3%, Exceeding 1.4% (Rochelle,
   // 10 Nov 2026). Dials are a pass line only. Connect rate stays off until JC fixes the per-SDR
   // connect figure on the Outbound Dashboard (SC_CONNECT_READY).
-  const SC_CONNECT_READY = false;
+  const SC_CONNECT_READY = true;   // fixed by JC 10 Nov 2026: connected leads ÷ leads dialed
   const SC_RATING_COLOR = { 'Needs Improvement':'#C0362C', 'Below Expectations':'#C97000',
     'Meeting Expectations':'#1A2DB5', 'Above Expectations':'#0E9F6E', 'Exceeding Expectations':'#0B6E4F' };
   const SC_LEVERS = [
@@ -9831,7 +9831,7 @@ ${html}
       else if (!a) note='Waiting for Outbound Dashboard data';
       else if (L.key==='leads') v = a.days>0 ? a.leadsBooked/a.days : null;
       else if (L.key==='close') v = a.connected>0 ? a.leadsBooked/a.connected*100 : null;
-      else if (L.key==='connect') v = a.handled>0 ? a.connected/a.handled*100 : null;
+      else if (L.key==='connect') v = a.dialed>0 ? a.connected/a.dialed*100 : null;
       else if (L.key==='dials') v = a.days>0 ? a.dials/a.days : null;
       return { L, v, valueTxt: v==null ? 'n/a' : L.fmt(v), rating: scRateLever(L, v), target: scTargetTxt(L), note };
     });
@@ -9847,16 +9847,17 @@ ${html}
       const h = splitLine(lines[0]).map(x=>x.trim().toLowerCase());
       const ix = k => h.indexOf(k);
       _scActRows = lines.slice(1).map(l=>{ const c=splitLine(l); const n=k=>parseFloat(c[ix(k)])||0;
-        return { date:(c[ix('date')]||'').trim(), sdr:(c[ix('sdr')]||'').trim(), dials:n('dials'), handled:n('leads_handled')||n('leads_dialed'), connected:n('connected_leads'), leadsBooked:n('leads_booked') }; });
+        return { date:(c[ix('date')]||'').trim(), sdr:(c[ix('sdr')]||'').trim(), dials:n('dials'), dialed:n('leads_dialed'), connected:n('connected_leads'), leadsBooked:n('leads_booked'), days:n('worked_days') }; });
       if ($('scorecardSection') && $('scorecardSection').style.display!=='none') scPreview();
     } catch (e) { _scActRows = null; }
   }
   function scActivityFor(id, ym, asOf){
     if (!_scActRows) return null;
-    const out={ dials:0, handled:0, connected:0, leadsBooked:0, days:0 };
-    _scActRows.forEach(r=>{ if (r.date.slice(0,7)!==ym || r.date>asOf || resolveAgent(r.sdr)!==id) return;
-      out.dials+=r.dials; out.handled+=r.handled; out.connected+=r.connected; out.leadsBooked+=r.leadsBooked; if (r.dials>0) out.days++; });
-    return out.days ? out : null;
+    // Rows are month-to-date totals per SDR (leads dialed/connected are distinct leads and do not
+    // add up across days), one row per month keyed on the month's first date. Latest row wins.
+    let out=null;
+    _scActRows.forEach(r=>{ if (r.date.slice(0,7)===ym && resolveAgent(r.sdr)===id) out={ dials:r.dials, dialed:r.dialed, connected:r.connected, leadsBooked:r.leadsBooked, days:r.days }; });
+    return out && out.days ? out : null;
   }
   // Focus = the levers below Meeting Expectations, leads booked and show-up first.
   function scLeverNextStep(M){
