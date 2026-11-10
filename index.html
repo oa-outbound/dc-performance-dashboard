@@ -1471,7 +1471,7 @@
             <div id="scSearchBox" style="position:absolute;left:0;right:0;top:100%;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.12);z-index:30;max-height:240px;overflow:auto;display:none"></div>
           </div>
           <div><label class="cl-label">As of date</label><input type="date" id="scDate" class="cl-input" onchange="scPreview()"></div>
-          <div><label class="cl-label">Sender</label><select id="scSender" class="cl-input" onchange="scPreview()"><option>Ritch Joy Manipol</option><option>Angelica Tanate</option><option>Jonathan Jabonete</option><option>Jumar Vere</option></select></div>
+          <div><label class="cl-label">Sender</label><select id="scSender" class="cl-input" onchange="scPreview()"><option>Rochelle Jan Valdez</option><option>Angelica Tanate</option><option>Jonathan Jabonete</option><option>Jumar Vere</option></select></div>
         </div>
         <div style="display:grid;grid-template-columns:minmax(300px,380px) 1fr;gap:20px;align-items:start">
           <div>
@@ -9697,10 +9697,10 @@ ${html}
   const SC_PH_HOLIDAYS = ['2026-01-01','2026-02-17','2026-04-02','2026-04-03','2026-04-09','2026-05-01','2026-06-12','2026-08-21','2026-08-31','2026-11-30','2026-12-08','2026-12-25','2026-12-30','2026-12-31'];
   // Team -> TL and SME to CC (coaching ownership visible)
   const SC_TEAM_STAFF = {
-    dijumhon: { tl:'Jumar Vere',        sme:['Diana Vosotros','Alvin Bayhon'] },
-    meloace:  { tl:'Angelica Tanate',   sme:'Alvin Melo' },
-    ev:       { tl:'Jonathan Jabonete', sme:'Vincent Gadier' },
-    bridge:   { tl:'Jonathan Jabonete', sme:'Vincent Gadier' },
+    // Nov 2026 roster: the former SMEs are SDRs on these teams now, so only the TL is copied.
+    dijumhon: { tl:'Jumar Vere',        sme:[] },
+    meloace:  { tl:'Angelica Tanate',   sme:[] },
+    ev:       { tl:'Jonathan Jabonete', sme:[] },
   };
   // Shared logging so the Acknowledgements page is visible to everyone, not just this browser.
   // Writes go to the same Apps Script as the Coaching Tracker (it routes record:'scorecard' to a
@@ -9755,7 +9755,8 @@ ${html}
     const monthBiz=[]; const lastDay=new Date(yy,mmn,0).getDate();
     for (let d=1; d<=lastDay; d++){ const dt=new Date(yy,mmn-1,d), dow=dt.getDay(), iso=localIso(dt); if (dow!==0 && dow!==6 && iso<=asOf) monthBiz.push(iso); }
     const booked=monthBiz.reduce((s,d)=>s+(aggregateForDate(d)[id]||0),0);
-    const su=aggregateShowupForDates(monthBiz)[id]||{yes:0,happened:0};
+    const allDays=[]; for (let d=1; d<=lastDay; d++){ const iso=localIso(new Date(yy,mmn-1,d)); if (iso<=asOf) allDays.push(iso); }
+    const su=aggregateShowupForDates(allDays)[id]||{yes:0,happened:0};   // by meeting date, weekends included
     const scheduled=su.happened, showed=su.yes;
     const attObj=_attLoaded?getAttendanceForDates(id,monthBiz):null;
     const attPct=attObj && attObj.scheduled>0 ? attObj.rate : null;
@@ -9790,8 +9791,84 @@ ${html}
     return { id,name,team,teamId,ym,booked,target,expectedMtd,paceGap,perDayNeeded,elapsed,totalWD,remaining,stretch,
       scheduled,showed,suRateRaw,suRateAdj,nc,ncReason:(opts.ncReason||'').trim(),attPct,attBreak,sessions,topics,
       ramping,tenure:opts.tenure||'',composite,prior:scGetPriorSnapshot(id,asOf),monthLogs,logs,
-      sender:opts.sender||'Ritch Joy Manipol',asOf,todayIso };
+      sender:opts.sender||'Rochelle Jan Valdez',asOf,todayIso, act:scActivityFor(id, ym, asOf) };
   }
+
+  // ── Derek's levers (27 Sep 2026), rated per lever. Labels never say Bad/Okay/Good/Better.
+  // Under the Below number = Needs Improvement. Close rate: Above 1.3%, Exceeding 1.4% (Rochelle,
+  // 10 Nov 2026). Dials are a pass line only. Connect rate stays off until JC fixes the per-SDR
+  // connect figure on the Outbound Dashboard (SC_CONNECT_READY).
+  const SC_CONNECT_READY = false;
+  const SC_RATING_COLOR = { 'Needs Improvement':'#C0362C', 'Below Expectations':'#C97000',
+    'Meeting Expectations':'#1A2DB5', 'Above Expectations':'#0E9F6E', 'Exceeding Expectations':'#0B6E4F' };
+  const SC_LEVERS = [
+    { key:'leads',   label:'Leads booked / day', fmt:v=>v.toFixed(2), round:v=>Math.round(v*100)/100, below:0.39, meeting:0.50, above:0.59, exceed:0.59, exceedIncl:false, main:true },
+    { key:'showup',  label:'Show-up rate (RAW)', fmt:v=>Math.round(v)+'%', round:v=>Math.round(v), below:60, meeting:65, above:67, exceed:67, exceedIncl:false, main:true },
+    { key:'close',   label:'Close rate (booked ÷ connected)', fmt:v=>v.toFixed(1)+'%', round:v=>Math.round(v*10)/10, below:1.1, meeting:1.2, above:1.3, exceed:1.4, exceedIncl:true },
+    { key:'connect', label:'Connect rate', fmt:v=>v.toFixed(1)+'%', round:v=>Math.round(v*10)/10, below:10, meeting:12, above:14, exceed:14, exceedIncl:false },
+    { key:'dials',   label:'Dials / day', fmt:v=>String(Math.round(v)), round:v=>Math.round(v), passLine:350 }
+  ];
+  function scRateLever(L, v){
+    if (v==null || isNaN(v)) return null;
+    const x = L.round(v);
+    let label;
+    if (L.passLine!=null) label = x>=L.passLine ? 'Meeting Expectations' : 'Below Expectations';
+    else if (L.exceedIncl ? x>=L.exceed : x>L.exceed) label='Exceeding Expectations';
+    else if (x>=L.above) label='Above Expectations';
+    else if (x>=L.meeting) label='Meeting Expectations';
+    else if (x>=L.below) label='Below Expectations';
+    else label='Needs Improvement';
+    return { label, color: SC_RATING_COLOR[label] };
+  }
+  function scTargetTxt(L){ return L.passLine!=null ? L.passLine+' a day' : L.fmt(L.meeting)+(L.key==='leads'?' a day':''); }
+  // One row per lever: value (null = no data yet), rating, Meeting Expectations target.
+  function scLevers(M){
+    return SC_LEVERS.map(L=>{
+      let v=null, note='';
+      const a=M.act;
+      if (L.key==='showup'){ if (M.scheduled>0) v=M.suRateRaw*100; else note='No DCs held yet'; }
+      else if (L.key==='connect' && !SC_CONNECT_READY) note='Coming soon';
+      else if (!a) note='Waiting for Outbound Dashboard data';
+      else if (L.key==='leads') v = a.days>0 ? a.leadsBooked/a.days : null;
+      else if (L.key==='close') v = a.connected>0 ? a.leadsBooked/a.connected*100 : null;
+      else if (L.key==='connect') v = a.handled>0 ? a.connected/a.handled*100 : null;
+      else if (L.key==='dials') v = a.days>0 ? a.dials/a.days : null;
+      return { L, v, valueTxt: v==null ? 'n/a' : L.fmt(v), rating: scRateLever(L, v), target: scTargetTxt(L), note };
+    });
+  }
+  // Activity per SDR per day (dials, connects, leads booked) from the Outbound Dashboard, via the
+  // DC Feed sheet's SDR Activity tab once JC exposes it. Empty URL = levers show "waiting for data".
+  const SC_ACTIVITY_CSV_URL = '';
+  let _scActRows = null;
+  async function scLoadActivity(){
+    if (!SC_ACTIVITY_CSV_URL || _scActRows) return;
+    try {
+      const lines = splitCsvRows((await (await fetch(SC_ACTIVITY_CSV_URL + (SC_ACTIVITY_CSV_URL.includes('?')?'&':'?') + 't=' + Date.now())).text()).trim());
+      const h = splitLine(lines[0]).map(x=>x.trim().toLowerCase());
+      const ix = k => h.indexOf(k);
+      _scActRows = lines.slice(1).map(l=>{ const c=splitLine(l); const n=k=>parseFloat(c[ix(k)])||0;
+        return { date:(c[ix('date')]||'').trim(), sdr:(c[ix('sdr')]||'').trim(), dials:n('dials'), handled:n('leads_handled')||n('leads_dialed'), connected:n('connected_leads'), leadsBooked:n('leads_booked') }; });
+      if ($('scorecardSection') && $('scorecardSection').style.display!=='none') scPreview();
+    } catch (e) { _scActRows = null; }
+  }
+  function scActivityFor(id, ym, asOf){
+    if (!_scActRows) return null;
+    const out={ dials:0, handled:0, connected:0, leadsBooked:0, days:0 };
+    _scActRows.forEach(r=>{ if (r.date.slice(0,7)!==ym || r.date>asOf || resolveAgent(r.sdr)!==id) return;
+      out.dials+=r.dials; out.handled+=r.handled; out.connected+=r.connected; out.leadsBooked+=r.leadsBooked; if (r.dials>0) out.days++; });
+    return out.days ? out : null;
+  }
+  // Focus = the levers below Meeting Expectations, leads booked and show-up first.
+  function scLeverNextStep(M){
+    const rows=scLevers(M).filter(r=>r.rating && (r.rating.label==='Needs Improvement'||r.rating.label==='Below Expectations'));
+    rows.sort((a,b)=>(b.L.main?1:0)-(a.L.main?1:0));
+    const isTL = ['Angelica Tanate','Jonathan Jabonete','Jumar Vere'].includes(M.sender);
+    if (!rows.length) return 'Every lever with data is at or above Meeting Expectations. Keep your current cadence, and aim to move your main levers (leads booked per day and show-up rate) into Above Expectations.';
+    const tips={ leads:'book more leads per working day (Meeting Expectations is 0.50 a day)', showup:'run the full post-booking reminder cadence so more DCs show (Meeting Expectations is 65%)',
+      close:'convert more of your connected calls into booked leads (Meeting Expectations is 1.2%)', connect:'lift your connect rate', dials:'reach at least 350 dials a day' };
+    return 'Focus for the coming week: ' + rows.slice(0,2).map(r=>tips[r.L.key]).join(', and ') + '. ' + (isTL ? 'Let me know if you would like to work on these together.' : 'Your team lead can work on these with you.');
+  }
+  function scLeverSummary(M){ return scLevers(M).filter(r=>r.rating).map(r=>`${r.L.label}: ${r.valueTxt} (${r.rating.label})`).join('; ') || 'no lever data yet'; }
 
   function scBand(score, ramping){
     if (ramping) return { label:'Ramping', color:SC_BRAND.blue };
@@ -9816,12 +9893,11 @@ ${html}
       const pSU = p.dcs_scheduled>0 ? p.dcs_showed/p.dcs_scheduled : null;
       if (M.suRateRaw!=null && pSU!=null && (M.suRateRaw-pSU)>0.005) c.push({v:(M.suRateRaw-pSU)*100, t:`your show-up rate improved by ${Math.round((M.suRateRaw-pSU)*100)} points`});
       if (M.attPct!=null && p.attendance_pct!=null && (M.attPct-p.attendance_pct)>0) c.push({v:M.attPct-p.attendance_pct, t:`your attendance is up ${Math.round(M.attPct-p.attendance_pct)} points`});
-      if (M.composite - p.composite_score > 0) c.push({v:M.composite-p.composite_score, t:`your overall score climbed ${M.composite-p.composite_score} points`});
       if (c.length){ c.sort((a,b)=>b.v-a.v); return 'Strong momentum: ' + c[0].t + '. Keep that going.'; }
     }
     const over=[];
     if (M.expectedMtd>0 && M.booked>=M.expectedMtd) over.push({v:M.booked-M.expectedMtd, t:'you are on or ahead of your pro-rated DC pace'});
-    if (M.suRateRaw!=null && M.suRateRaw>=0.8) over.push({v:(M.suRateRaw-0.8)*100, t:`your show-up rate of ${Math.round(M.suRateRaw*100)}% is at or above the 80% mark`});
+    if (M.suRateRaw!=null && M.suRateRaw>=0.65) over.push({v:(M.suRateRaw-0.65)*100, t:`your show-up rate of ${Math.round(M.suRateRaw*100)}% is at or above the 65% Meeting Expectations mark`});
     if (M.attPct!=null && M.attPct>=95) over.push({v:M.attPct-95, t:`your attendance of ${Math.round(M.attPct)}% is strong`});
     if (over.length){ over.sort((a,b)=>b.v-a.v); return 'What is working: ' + over[0].t + '.'; }
     if (p && M.booked>=p.booked_dcs && (M.attPct==null || p.attendance_pct==null || M.attPct>=p.attendance_pct)) return 'You have held steady with no metric slipping versus last week. Let us build from that base.';
@@ -9829,16 +9905,16 @@ ${html}
   }
   // Decision-first intro: verdict + as-of date + headline DC pace + week-over-week + paired bright spot / fix.
   function scIntro(M){
-    const band=scBand(M.composite,M.ramping);
     const asOfLong=new Date(M.asOf+'T00:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
-    const verdict={ 'Strong Performer':'you are performing strongly','On Track':'you are on track','Needs Improvement':'this month needs improvement','Declining':'your numbers are sliding','Ramping':'you are still ramping' }[band.label] || ('you are '+band.label.toLowerCase());
+    const rated=scLevers(M).filter(r=>r.rating);
+    const verdict = rated.length ? rated.map(r=>`${r.L.label.toLowerCase()} is ${r.rating.label} (${r.valueTxt})`).join(', ') : 'there is not enough data yet to rate your levers';
     const pace = M.paceGap>=0 ? `ahead of the steady pace by ${M.paceGap}` : `behind the steady pace by ${Math.abs(M.paceGap)}`;
     const daysTxt = M.remaining>0 ? ` with ${M.remaining} working day${M.remaining===1?'':'s'} to close the month` : ', and the month has closed';
     let wow=''; const p=M.prior;
-    if (p){ const d=M.composite-p.composite_score; wow = d>0?', and you are trending up from last week':d<0?', and you are sliding from last week':', holding steady versus last week'; }
+    if (p){ const d=M.booked-p.booked_dcs; wow = d>0?`, up ${d} DC${d===1?'':'s'} from last week`:''; }
     // paired bright spot (a performance metric only, attendance is a baseline) and the main thing to fix (any metric)
     const mets=[{k:'dc', v:M.expectedMtd>0?M.booked/M.expectedMtd:1, good:M.paceGap>=0, pos:'your booked DC pace', neg:'your booked DC volume'}];
-    if (M.scheduled>0) mets.push({k:'su', v:M.suRateRaw, good:M.suRateRaw>=0.8, pos:`your ${Math.round(M.suRateRaw*100)}% show-up rate`, neg:`your ${Math.round(M.suRateRaw*100)}% show-up rate`});
+    if (M.scheduled>0) mets.push({k:'su', v:M.suRateRaw, good:M.suRateRaw>=0.65, pos:`your ${Math.round(M.suRateRaw*100)}% show-up rate`, neg:`your ${Math.round(M.suRateRaw*100)}% show-up rate`});
     if (M.attPct!=null) mets.push({k:'att', v:M.attPct/100, good:M.attPct>=95, pos:`your ${Math.round(M.attPct)}% attendance`, neg:`your ${Math.round(M.attPct)}% attendance`});
     const goodPerf = mets.filter(m=>(m.k==='dc'||m.k==='su') && m.good).sort((a,b)=>b.v-a.v)[0];
     const worst = [...mets].sort((a,b)=>a.v-b.v)[0];
@@ -9858,7 +9934,7 @@ ${html}
   function scDelta(cur, prior, kind){ if (prior==null) return ''; const d=Math.round(cur-prior); if (d===0) return 'no change'; return `${d>0?'+':''}${d}${kind==='pts'?' pts':''} vs last week`; }
 
   function scYM(){ const d=($('scDate')&&$('scDate').value)||localIso(new Date()); return d.slice(0,7); }
-  function scOpts(){ return { nc:$('scNC')?$('scNC').value:0, ncReason:$('scNCReason')?$('scNCReason').value:'', ramping:$('scRamp')?$('scRamp').checked:false, tenure:$('scTenure')?$('scTenure').value:'', sender:$('scSender')?$('scSender').value:'Ritch Joy Manipol', asOf:($('scDate')&&$('scDate').value)||localIso(new Date()) }; }
+  function scOpts(){ return { nc:$('scNC')?$('scNC').value:0, ncReason:$('scNCReason')?$('scNCReason').value:'', ramping:$('scRamp')?$('scRamp').checked:false, tenure:$('scTenure')?$('scTenure').value:'', sender:$('scSender')?$('scSender').value:'Rochelle Jan Valdez', asOf:($('scDate')&&$('scDate').value)||localIso(new Date()) }; }
 
   function scMemberPool(){ const tl=$('scTL')?$('scTL').value:''; return _scMembers.filter(m=>!tl||m.teamId===tl); }
   function scSearchInput(){
@@ -9881,6 +9957,7 @@ ${html}
     const bt=$('scBatchTeam'); if (bt && !bt.options.length){ bt.innerHTML=TEAMS.filter(t=>t.id!=='poc').map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join(''); }
     if (!_coachLogsLoaded) loadCoachingLogs(false).then(()=>{ if ($('scorecardSection').style.display!=='none') scPreview(); });
     if (!_attLoaded && !_attLoading) loadAttendanceData();
+    scLoadActivity();
     scPreview();
   }
 
@@ -9949,7 +10026,7 @@ ${html}
   async function scFetchAI(id, ym, M){
     const ab=M.attBreak;
     const asOfLong=new Date(M.asOf+'T00:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
-    const wowTxt = M.prior ? (M.composite>M.prior.composite_score?'improving vs last week':M.composite<M.prior.composite_score?'sliding vs last week':'flat vs last week') : 'no prior week to compare';
+    const wowTxt = M.prior ? (M.booked>M.prior.booked_dcs?'more booked DCs than last week':'no change in booked DCs since last week') : 'no prior week to compare';
     const notes=M.logs.slice(0,15).map(l=>`- [${(l.date||'').slice(0,10)} · ${l.topic||clCoachType(l).label||''}] ${l.summary||'(no summary)'}`).join('\n') || '(no coaching notes on file)';
     // Who is writing vs who actually line-manages this rep. The sender is often the Senior Sales
     // Supervisor, who sits above the team leaders and does NOT run this rep's 1-on-1s, so the AI
@@ -9973,10 +10050,11 @@ ${html}
     const tlName=scTLName(M.teamId), senderIsTL = !!tlName && M.sender===tlName;
     const voice = senderIsTL
       ? `You are writing as ${M.sender}, ${M.name}'s direct team leader. First person is correct here: "book time with me", "we will review", "I will sit in" are all fine.`
-      : `You are writing as ${M.sender}, Senior Sales Supervisor. You are NOT ${M.name}'s direct team leader${tlName?` — that is ${tlName}, who runs their 1-on-1s, coaching sessions and call reviews`:''}. CRITICAL: never tell ${M.name} to schedule a call, 1-on-1, coaching session or call review "with me", and never say "we will review" their calls or clock-ins. Route every coaching or day-to-day follow-up action to ${tlName||'their team leader'} by name${tlName?` (for example "book your 1-on-1 with ${tlName.split(' ')[0]} this week")`:''}. You may still state the standard you expect and what will be tracked at the supervisor level.`;
+      : `You are writing as ${M.sender}, Operations Manager. You are NOT ${M.name}'s direct team leader${tlName?` — that is ${tlName}, who runs their 1-on-1s, coaching sessions and call reviews`:''}. CRITICAL: never tell ${M.name} to schedule a call, 1-on-1, coaching session or call review "with me", and never say "we will review" their calls or clock-ins. Route every coaching or day-to-day follow-up action to ${tlName||'their team leader'} by name${tlName?` (for example "book your 1-on-1 with ${tlName.split(' ')[0]} this week")`:''}. You may still state the standard you expect and what will be tracked at the supervisor level.`;
     const prompt=`You are a sales performance coach at Outsource Accelerator (offshore staffing). Review this BDR for ${new Date(M.ym+'-01T00:00:00').toLocaleDateString('en-US',{month:'long',year:'numeric'})} (month to date). "DC" = Discovery Call. Data is through ${asOfLong}.
 ${voice}
-NAME: ${M.name} (team ${M.team}), verdict ${scBand(M.composite,M.ramping).label}
+NAME: ${M.name} (team ${M.team})
+LEVER RATINGS against the team targets (use these exact labels, never "Bad/Okay/Good/Better"): ${scLeverSummary(M)}. Leads booked per day and show-up rate are the main levers. Meeting Expectations: 0.50 leads booked a day, 65% show-up, 1.2% close rate, 350 dials a day.
 Booked DCs: ${M.booked} of ${M.target} (steady pace by now is ${M.expectedMtd}, so ${M.paceGap>=0?'ahead by '+M.paceGap:'behind by '+Math.abs(M.paceGap)}), ${M.remaining} working days left.
 Show-up: ${M.scheduled>0?Math.round(M.suRateRaw*100)+'% ('+M.showed+' of '+M.scheduled+' scheduled showed)':'no scheduled DCs yet'}.
 Attendance MTD: ${M.attPct!=null?Math.round(M.attPct)+'%':'not available'}${ab?`, made up of ${ab.present} present, ${ab.late} late, ${ab.absent} absent, ${ab.undertime} undertime across ${ab.scheduled} logged days. On-time (present only, not late): ${Math.round(ab.present/ab.scheduled*100)}%`:''}.
@@ -9985,8 +10063,8 @@ Coaching this month: ${M.sessions} session(s)${M.topics.length?', topics: '+M.to
 Recent coaching notes (newest first):
 ${notes}
 
-Write in a natural human voice (not robotic, no meta-commentary about being an AI). ${attRule} The attendance percent counts late arrivals as present, so judge reliability from the present/late/absent breakdown above, never from the percent alone. Use ONLY the figures given above: do not mention dials, calls made, talk time, connect rates, emails, or any other metric that is not listed here, and do not invent numbers. Always call them "DCs" or "Discovery Calls", never "calls". Do NOT use em dashes. Return ONLY valid JSON with three fields:
-{"headline":"2 to 3 sentences that OPEN the email: state the verdict and where they stand as of ${asOfLong}, lead with the booked DC pace (the real headline), note the week-over-week direction, and name the one main thing to fix. Name a bright spot ONLY if the figures above genuinely support one; if every metric is below standard, say that plainly rather than manufacturing a positive", "summary":"2 to 3 sentence deeper read", "suggestions":["specific action","specific action","specific action"]}`;
+Write in a natural human voice (not robotic, no meta-commentary about being an AI). ${attRule} The attendance percent counts late arrivals as present, so judge reliability from the present/late/absent breakdown above, never from the percent alone. Use ONLY the figures given above: do not mention any metric that is not listed here (if a lever has no rating, do not discuss it), and do not invent numbers. Always call them "DCs" or "Discovery Calls", never "calls". Do NOT use em dashes. Return ONLY valid JSON with three fields:
+{"headline":"2 to 3 sentences that OPEN the email: state where their levers stand as of ${asOfLong}, lead with the booked DC pace (the real headline), note the week-over-week direction, and name the one main thing to fix. Name a bright spot ONLY if the figures above genuinely support one; if every metric is below standard, say that plainly rather than manufacturing a positive", "summary":"2 to 3 sentence deeper read", "suggestions":["specific action","specific action","specific action"]}`;
     try {
       const data=await clAiRelay({ model:'claude-haiku-4-5-20251001', max_tokens:700, messages:[{role:'user',content:prompt}] });
       const g=clParseJson(clAiText(data));
@@ -10008,46 +10086,42 @@ Write in a natural human voice (not robotic, no meta-commentary about being an A
     scPreview();
   }
 
+  function scLeverTableHtml(M, compact){
+    const rows=scLevers(M);
+    const pill=r=> r.rating ? `<span style="background:${r.rating.color};color:#fff;font-size:${compact?10:11}px;font-weight:700;padding:2px 8px;border-radius:10px;white-space:nowrap">${r.rating.label}</span>`
+      : `<span style="color:#8892A6;font-size:${compact?10:11}px">${esc(r.note||'—')}</span>`;
+    const td='padding:7px 8px;border-bottom:1px solid #EEF2F7;vertical-align:middle;font-size:'+(compact?'11.5':'12.5')+'px';
+    return `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse">
+      <tr style="background:#F4F6FB"><td style="${td};font-weight:700;color:#5B6678">Lever</td><td style="${td};font-weight:700;color:#5B6678;text-align:center">You</td><td style="${td};font-weight:700;color:#5B6678">Rating</td><td style="${td};font-weight:700;color:#5B6678;text-align:center">Meeting Expectations</td></tr>
+      ${rows.map(r=>`<tr><td style="${td};color:#1F2733">${r.L.main?'<b>'+esc(r.L.label)+'</b>':esc(r.L.label)}</td><td style="${td};text-align:center;font-weight:700;color:#0D1A6E">${r.valueTxt}</td><td style="${td}">${pill(r)}</td><td style="${td};text-align:center;color:#5B6678">${esc(r.target)}</td></tr>`).join('')}
+    </table>`;
+  }
   function scRenderCard(M){
     const el=$('scCard'); if (!el) return;
-    const band=scBand(M.composite, M.ramping);
     const found=scFindMember(M.id), color=found?found.team.color:SC_BRAND.blue, p=M.prior;
-    const suNow=M.suRateRaw!=null?Math.round(M.suRateRaw*100):null;
-    const suPrior=p&&p.dcs_scheduled>0?Math.round(p.dcs_showed/p.dcs_scheduled*100):null;
-    const dl=lab=>lab?`<div style="font-size:9px;color:#8892A6;margin-top:1px">${esc(lab)}</div>`:'';
-    const tile=(lab,val,col,sub,delta)=>`<div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center">
-      <div style="font-size:22px;font-weight:800;color:${col};line-height:1.05">${val}</div>
-      <div style="font-size:9px;letter-spacing:.4px;text-transform:uppercase;color:#5B6678;margin-top:4px">${lab}</div>
-      ${sub?`<div style="font-size:10px;color:#5B6678;margin-top:1px">${sub}</div>`:''}${dl(delta)}</div>`;
     el.innerHTML=`<div style="background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden">
-      <div style="background:${esc(color)};padding:14px 16px;display:flex;justify-content:space-between;align-items:center">
-        <div><div style="color:#fff;font-weight:800;font-size:16px">${esc(M.name)}</div><div style="color:rgba(255,255,255,.85);font-size:11px">${esc(M.team)} · ${new Date(M.ym+'-01T00:00:00').toLocaleDateString('en-US',{month:'long',year:'numeric'})}</div></div>
-        <div style="text-align:right"><div style="color:#fff;font-size:24px;font-weight:800">${M.composite}<span style="font-size:12px;font-weight:600">/100</span></div><div style="background:${band.color};color:#fff;font-size:10px;font-weight:800;padding:2px 8px;border-radius:10px;display:inline-block;margin-top:2px">${band.label}</div></div>
+      <div style="background:${esc(color)};padding:14px 16px">
+        <div style="color:#fff;font-weight:800;font-size:16px">${esc(M.name)}</div>
+        <div style="color:rgba(255,255,255,.85);font-size:11px">${esc(M.team)} · ${new Date(M.ym+'-01T00:00:00').toLocaleDateString('en-US',{month:'long',year:'numeric'})} · as of ${esc(M.asOf)}</div>
       </div>
-      <div style="padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        ${tile('Booked DCs', M.booked, SC_BRAND.blue, `pace ${M.expectedMtd} · ${M.paceGap>=0?'+':''}${M.paceGap}`, p?scDelta(M.booked,p.booked_dcs,'count'):'')}
-        ${tile(M.remaining>0?'Need / day':'Days left', M.perDayNeeded==null?'—':M.perDayNeeded, '#C0362C', M.remaining>0?`to hit ${M.target}`:'month closed', '')}
-        ${M.scheduled>0?tile('Show-up', suNow+'%', suNow>=80?'#0E9F6E':suNow>=50?'#C97000':'#C0362C', `${M.showed} showed`, (suNow!=null&&suPrior!=null)?scDelta(suNow,suPrior,'pts'):''):''}
-        ${M.attPct!=null?tile('Attendance', Math.round(M.attPct)+'%', '#0D1A6E', 'MTD', (p&&p.attendance_pct!=null)?scDelta(Math.round(M.attPct),Math.round(p.attendance_pct),'pts'):''):''}
-      </div>
-      ${p?`<div style="padding:0 14px 12px;font-size:11px;color:#5B6678">Overall score ${esc(scDelta(M.composite,p.composite_score,'pts'))}</div>`:''}
+      <div style="padding:10px 12px">${scLeverTableHtml(M, true)}</div>
+      <div style="padding:0 14px 12px;font-size:11px;color:#5B6678;line-height:1.5">DCs this month: <b>${M.booked}</b> by meeting date${p?' ('+esc(scDelta(M.booked,p.booked_dcs,'count'))+')':''}${M.attPct!=null?` · Attendance MTD: <b>${Math.round(M.attPct)}%</b>`:''}</div>
     </div>`;
   }
 
   function scBuildEmail(M){
     const B=SC_BRAND, INK='#1F2733', SLATE='#5B6678', LINE='#D9DEEC';
-    const band=scBand(M.composite, M.ramping);
-    const nextStep=scBandNextStep(band.label, M);
+    const nextStep=scLeverNextStep(M);
     const ai = _scAI[M.id+'|'+M.ym];
     const intro = (ai && ai.headline) ? ai.headline : scIntro(M);
     const first=esc((M.name||'').split(' ')[0])||'there';
     const monthLbl=new Date(M.ym+'-01T00:00:00').toLocaleDateString('en-US',{month:'long',year:'numeric'});
     const staff=SC_TEAM_STAFF[M.teamId]||{};
     const ccNames=[staff.tl].concat(staff.sme||[]).filter(Boolean).filter(n=>n!==M.sender);
-    const senderTitle = ['Angelica Tanate','Jonathan Jabonete','Jumar Vere'].includes(M.sender) ? 'Sales Supervisor, SD Outbound' : 'Senior Sales Supervisor, SD Outbound';
+    const senderTitle = ['Angelica Tanate','Jonathan Jabonete','Jumar Vere'].includes(M.sender) ? 'Team Lead, SD Outbound' : 'Operations Manager, SD Outbound';
     const senderFirst = (M.sender||'').split(' ')[0];
     const ccLine=`<b>To:</b> ${esc(M.name)} &nbsp;&nbsp; <b>Cc:</b> ${ccNames.map(esc).join(', ')||'—'}`;
-    const subject=`[SDR SCORECARD] ${monthLbl} · ${scWeekOfMonth(M.asOf)} · ${M.name} · ${band.label} · from ${senderFirst}`;
+    const subject=`[SDR SCORECARD] ${monthLbl} · ${scWeekOfMonth(M.asOf)} · ${M.name} · from ${senderFirst}`;
     const nowStamp=M.sent.toLocaleString('en-PH',{month:'long',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit',timeZone:'Asia/Manila'})+' PHT';
     const deadlineLong=scFmtPHT(M.deadline.adj);
     const rampLine=M.ramping?`<div style="font-size:12.5px;color:${SLATE};margin-top:6px">Your target has been adjusted for tenure${M.tenure?' ('+esc(M.tenure)+' weeks)':''}, so this reflects a scaled goal of ${M.target} DCs.</div>`:'';
@@ -10061,6 +10135,7 @@ Write in a natural human voice (not robotic, no meta-commentary about being an A
       <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:${B.blue};margin-bottom:5px">${title}</div>
       <div style="font-size:13.5px;line-height:1.6;color:${INK}">${body}</div></div>`;
     const cards=[];
+    cards.push(card('Your levers', scLeverTableHtml(M, false) + `<div style="font-size:11.5px;color:${SLATE};margin-top:8px">Leads booked per day and show-up rate are your main levers. Ratings: Needs Improvement, Below Expectations, Meeting Expectations, Above Expectations, Exceeding Expectations.</div>`));
     cards.push(card('Booked DCs and pace', `<b>Booked:</b> ${M.booked} of a ${M.target} monthly target. At the steady pace of ${DAILY_TARGET} DCs a day you would be around <b>${M.expectedMtd}</b> by now, so you are ${paceMark}.${paceCallout}`));
     if (M.scheduled>0){
       let line=`<b>Show-up rate:</b> ${Math.round(M.suRateRaw*100)}% (${M.showed} DC${M.showed===1?'':'s'} showed).`;
@@ -10075,7 +10150,6 @@ Write in a natural human voice (not robotic, no meta-commentary about being an A
         <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;color:#9FB0FF;text-transform:uppercase">Outsource Accelerator · SD Outbound</div>
         <div style="color:#fff;font-size:20px;font-weight:700;margin-top:6px">${esc(M.name)}</div>
         <div style="color:rgba(255,255,255,.7);font-size:12px;margin-top:3px">Weekly Scorecard · ${esc(monthLbl)} (month to date) · ${esc(M.team)}</div>
-        <div style="margin-top:12px;display:inline-block;background:${band.color};color:#fff;font-size:13px;font-weight:800;padding:6px 14px;border-radius:8px">${band.label}</div>
       </div>
       <div style="padding:18px 26px 4px;font-size:13.5px;line-height:1.6;color:${INK}">Hi ${first},<br><br>${esc(intro)}${rampLine}</div>
       <div style="padding:12px 26px 2px">${cards.join('')}</div>
@@ -10094,7 +10168,8 @@ Write in a natural human voice (not robotic, no meta-commentary about being an A
 
     const P=[];
     P.push(`SDR WEEKLY SCORECARD - ${monthLbl} (month to date)`);
-    P.push(`${M.name} | ${M.team} | ${band.label}`);
+    P.push(`${M.name} | ${M.team}`);
+    P.push(''); P.push('YOUR LEVERS'); scLevers(M).forEach(r=>P.push(`${r.L.label}: ${r.valueTxt}  ${r.rating?r.rating.label:(r.note||'')}  (Meeting Expectations: ${r.target})`));
     P.push(`To: ${M.name}   Cc: ${ccNames.join(', ')||'-'}`); P.push('');
     P.push(`Hi ${(M.name||'').split(' ')[0]||'there'},`); P.push(''); P.push(intro); if (M.ramping) P.push(`(Target adjusted for tenure: scaled goal ${M.target} DCs.)`); P.push('');
     P.push('BOOKED DCS AND PACE');
@@ -10119,8 +10194,12 @@ Write in a natural human voice (not robotic, no meta-commentary about being an A
   function scBatchPreview(){
     const tid=$('scBatchTeam')&&$('scBatchTeam').value, ym=scYM(), asOf=($('scDate')&&$('scDate').value)||localIso(new Date());
     const t=TEAMS.find(x=>x.id===tid); if (!t){ if ($('scBatch')) $('scBatch').innerHTML=''; return; }
-    const rows=t.members.filter(m=>!m.hidden).map(m=>{ const M=scCompute(m.id,ym,{nc:0,ramping:false,asOf}); if (!M) return null; const b=scBand(M.composite,false); return {name:M.name,score:M.composite,band:b.label,color:b.color}; }).filter(Boolean).sort((a,b)=>a.score-b.score);
-    $('scBatch').innerHTML = rows.length ? rows.map(r=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #EEF2F7;font-size:12px"><span style="color:var(--ink)">${esc(r.name)}</span><span style="display:flex;gap:8px;align-items:center"><b>${r.score}</b><span style="background:${r.color};color:#fff;font-size:9px;font-weight:800;padding:1px 7px;border-radius:9px">${r.band}</span></span></div>`).join('') : '<div style="font-size:12px;color:var(--slate)">No members.</div>';
+    const order=['Needs Improvement','Below Expectations','Meeting Expectations','Above Expectations','Exceeding Expectations'];
+    const chip=r=>r.rating?`<span title="${esc(r.L.label)}: ${r.valueTxt} (${r.rating.label})" style="background:${r.rating.color};color:#fff;font-size:9.5px;font-weight:700;padding:1px 6px;border-radius:8px">${r.valueTxt}</span>`:'<span style="color:#B7C0CE;font-size:10px">n/a</span>';
+    const rows=t.members.filter(m=>!m.hidden).map(m=>{ const M=scCompute(m.id,ym,{nc:0,ramping:false,asOf}); if (!M) return null;
+      const lv=scLevers(M); const su=lv.find(r=>r.L.key==='showup'), ld=lv.find(r=>r.L.key==='leads');
+      return { name:M.name, su, ld, k:(su.rating?order.indexOf(su.rating.label):9) }; }).filter(Boolean).sort((a,b)=>a.k-b.k);
+    $('scBatch').innerHTML = rows.length ? `<div style="display:flex;justify-content:flex-end;gap:14px;font-size:10px;color:#5B6678;padding-bottom:4px"><span>Leads/day</span><span>Show-up</span></div>` + rows.map(r=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #EEF2F7;font-size:12px"><span style="color:var(--ink)">${esc(r.name)}</span><span style="display:flex;gap:10px;align-items:center">${chip(r.ld)}${chip(r.su)}</span></div>`).join('') : '<div style="font-size:12px;color:var(--slate)">No team members.</div>';
   }
 
   async function scCopyEmail(){ const btn=$('scCopyBtn'); try { await navigator.clipboard.write([new ClipboardItem({ 'text/html':new Blob([window._scEmailHtml||''],{type:'text/html'}), 'text/plain':new Blob([window._scEmailPlain||''],{type:'text/plain'}) })]); } catch { try { await navigator.clipboard.writeText(window._scEmailPlain||''); } catch {} } if (btn){ btn.textContent='Copied ✓'; setTimeout(()=>btn.textContent='Copy email',1600); } }
