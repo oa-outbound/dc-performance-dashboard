@@ -9755,8 +9755,10 @@ ${html}
     const monthBiz=[]; const lastDay=new Date(yy,mmn,0).getDate();
     for (let d=1; d<=lastDay; d++){ const dt=new Date(yy,mmn-1,d), dow=dt.getDay(), iso=localIso(dt); if (dow!==0 && dow!==6 && iso<=asOf) monthBiz.push(iso); }
     const booked=monthBiz.reduce((s,d)=>s+(aggregateForDate(d)[id]||0),0);
-    const allDays=[]; for (let d=1; d<=lastDay; d++){ const iso=localIso(new Date(yy,mmn-1,d)); if (iso<=asOf) allDays.push(iso); }
-    const su=aggregateShowupForDates(allDays)[id]||{yes:0,happened:0};   // by meeting date, weekends included
+    // Show-up counts every meeting in the month that already has an outcome (pending ones are left
+    // out anyway), by meeting date, weekends included. Same basis as the Outbound DC Stats page.
+    const allDays=[]; for (let d=1; d<=lastDay; d++) allDays.push(localIso(new Date(yy,mmn-1,d)));
+    const su=aggregateShowupForDates(allDays)[id]||{yes:0,happened:0};
     const scheduled=su.happened, showed=su.yes;
     const attObj=_attLoaded?getAttendanceForDates(id,monthBiz):null;
     const attPct=attObj && attObj.scheduled>0 ? attObj.rate : null;
