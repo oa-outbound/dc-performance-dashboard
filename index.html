@@ -10097,8 +10097,8 @@ Write in a natural human voice (not robotic, no meta-commentary about being an A
       : `<span style="color:#8892A6;font-size:${compact?10:11}px">${esc(r.note||'—')}</span>`;
     const td='padding:7px 8px;border-bottom:1px solid #EEF2F7;vertical-align:middle;font-size:'+(compact?'11.5':'12.5')+'px';
     return `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse">
-      <tr style="background:#F4F6FB"><td style="${td};font-weight:700;color:#5B6678">Lever</td><td style="${td};font-weight:700;color:#5B6678;text-align:center">You</td><td style="${td};font-weight:700;color:#5B6678">Rating</td><td style="${td};font-weight:700;color:#5B6678;text-align:center">Meeting Expectations</td></tr>
-      ${rows.map(r=>`<tr><td style="${td};color:#1F2733">${r.L.main?'<b>'+esc(r.L.label)+'</b>':esc(r.L.label)}</td><td style="${td};text-align:center;font-weight:700;color:#0D1A6E">${r.valueTxt}</td><td style="${td}">${pill(r)}</td><td style="${td};text-align:center;color:#5B6678">${esc(r.target)}</td></tr>`).join('')}
+      <tr style="background:#F4F6FB"><td style="${td};font-weight:700;color:#5B6678">Metrics</td><td style="${td};font-weight:700;color:#5B6678;text-align:center">Targets</td><td style="${td};font-weight:700;color:#5B6678;text-align:center">Your score</td><td style="${td};font-weight:700;color:#5B6678">Rating</td></tr>
+      ${rows.map(r=>`<tr><td style="${td};color:#1F2733">${r.L.main?'<b>'+esc(r.L.label)+'</b>':esc(r.L.label)}</td><td style="${td};text-align:center;color:#5B6678">${esc(r.target)}</td><td style="${td};text-align:center;font-weight:700;color:#0D1A6E">${r.valueTxt}</td><td style="${td}">${pill(r)}</td></tr>`).join('')}
     </table>`;
   }
   function scRenderCard(M){
@@ -10140,7 +10140,7 @@ Write in a natural human voice (not robotic, no meta-commentary about being an A
       <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:${B.blue};margin-bottom:5px">${title}</div>
       <div style="font-size:13.5px;line-height:1.6;color:${INK}">${body}</div></div>`;
     const cards=[];
-    cards.push(card('Your levers', scLeverTableHtml(M, false) + `<div style="font-size:11.5px;color:${SLATE};margin-top:8px">Leads booked per day and show-up rate are your main levers. Ratings: Needs Improvement, Below Expectations, Meeting Expectations, Above Expectations, Exceeding Expectations.</div>`));
+    cards.push(card('Your metrics', scLeverTableHtml(M, false) + `<div style="font-size:11.5px;color:${SLATE};margin-top:8px">Leads booked per day and show-up rate are your main metrics. Ratings: Needs Improvement, Below Expectations, Meeting Expectations, Above Expectations, Exceeding Expectations.</div>`));
     cards.push(card('Booked DCs and pace', `<b>Booked:</b> ${M.booked} of a ${M.target} monthly target. At the steady pace of ${DAILY_TARGET} DCs a day you would be around <b>${M.expectedMtd}</b> by now, so you are ${paceMark}.${paceCallout}`));
     if (M.scheduled>0){
       let line=`<b>Show-up rate:</b> ${(M.suRateRaw*100).toFixed(2)}% (${M.showed} DC${M.showed===1?'':'s'} showed).`;
@@ -10174,7 +10174,7 @@ Write in a natural human voice (not robotic, no meta-commentary about being an A
     const P=[];
     P.push(`SDR WEEKLY SCORECARD - ${monthLbl} (month to date)`);
     P.push(`${M.name} | ${M.team}`);
-    P.push(''); P.push('YOUR LEVERS'); scLevers(M).forEach(r=>P.push(`${r.L.label}: ${r.valueTxt}  ${r.rating?r.rating.label:(r.note||'')}  (Meeting Expectations: ${r.target})`));
+    P.push(''); P.push('YOUR METRICS'); scLevers(M).forEach(r=>P.push(`${r.L.label}: target ${r.target}, your score ${r.valueTxt}, ${r.rating?r.rating.label:(r.note||'')}`));
     P.push(`To: ${M.name}   Cc: ${ccNames.join(', ')||'-'}`); P.push('');
     P.push(`Hi ${(M.name||'').split(' ')[0]||'there'},`); P.push(''); P.push(intro); if (M.ramping) P.push(`(Target adjusted for tenure: scaled goal ${M.target} DCs.)`); P.push('');
     P.push('BOOKED DCS AND PACE');
