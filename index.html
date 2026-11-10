@@ -1366,7 +1366,7 @@
             <div id="clEmailPreview" style="padding:14px;background:#fff;overflow:auto;max-height:70vh"></div>
           </div>
           <div style="margin-top:10px;background:#EEF3FB;border:1px solid #C9D8F0;border-radius:10px;padding:10px 14px;font-size:11px;color:#142E5C">
-            <b style="color:#0C1F42">Download PDF</b> saves the signed-copy version (choose <i>Save as PDF</i> in the print window) for the SDR and team lead to e-sign. <b style="color:#D6006D">Copy email</b> copies the full design — paste straight into Gmail and the formatting carries over. Check each TM's prior record so the discipline level matches their history.
+            <b style="color:#0C1F42">Download PDF</b> saves the coaching log for the SDR and team lead to e-sign (choose <i>Save as PDF</i>). For GROW and BEEF, <b style="color:#D6006D">Copy email</b> copies the short cover email: paste it into Gmail with the subject, To and Cc, and attach the PDF. Other templates copy the full note into the email body. Check each TM's prior record so the discipline level matches their history.
           </div>
         </div>
 
@@ -7956,7 +7956,7 @@ ${notes}`;
     const sessionDate = $('clConvoDate').value;
     const nextDate    = $('clWkNextDate').value;
     const coachName   = ($('clWkCoachName') && $('clWkCoachName').value.trim()) || 'Rochelle Jan Valdez';
-    const subject = `Coaching Log | ${tmName || '[Name]'} | ${clFmtDate(sessionDate) || '[Date]'}`;
+    const subject = `Coaching Log - ${tmName || '[Name]'} - ${clFmtDate(sessionDate) || '[Date]'}`;
     // No AI result yet: build the log straight from what the coach typed, so GROW works
     // without the AI relay. Generate with AI only polishes it.
     let g = window._clGeneratedWeekly;
@@ -7969,7 +7969,7 @@ ${notes}`;
           <div style="font-size:15px;font-weight:600;color:#555;margin-bottom:8px">Type in the GROW fields to build the coaching log</div>
           <div style="font-size:12px;color:#aaa">Goal, Reality, Opportunity and Way Forward fill the table as you type, or paste a transcript and click Draft with AI.</div>
         </div>`;
-        window._clEmailHtml = ''; window._clEmailPlain = '';
+        window._clEmailHtml = ''; window._clEmailPlain = ''; window._clDocHtml = '';
         return;
       }
       g = { manual: true, goal: fv('clWkGoal'), reality: fv('clWkReality'),
@@ -8493,13 +8493,79 @@ Return ONLY valid JSON (no markdown, no commentary) with this exact shape:
     return L.join('\n');
   }
 
+  // The coaching log itself goes out as the PDF attachment. The email is the short cover note
+  // Rochelle sent Devi on 19 Oct 2026: thanks, log attached, comment + sign + date + return by
+  // the end of the next shift, e-sign tools. The full log still shows under it for checking.
+  const CL_STAFF_EMAIL = {
+    'Rochelle Jan Valdez':'roch@outsourceaccelerator.com', 'Jumar Vere':'j.vere@outsourceaccelerator.com',
+    'Angelica Tanate':'angelica@outsourceaccelerator.com', 'Jonathan Jabonete':'j.jabonete@outsourceaccelerator.com',
+    'Aly Limayo':'aly@outsourceaccelerator.com'
+  };
+  function clNextBizDay(iso) {
+    const d = new Date(iso + 'T00:00:00');
+    do { d.setDate(d.getDate() + 1); } while (d.getDay() === 0 || d.getDay() === 6);
+    return d;
+  }
+  function clCoverEmail(o, coach) {
+    const name = o.rep.name || '';
+    const id = name ? resolveAgent(name) : null;
+    let repEmail = '';
+    TEAMS.forEach(t => t.members.forEach(m => { if (m.id === id && m.email) repEmail = m.email; }));
+    const first = (name.match(/[“"]([^”"]+)[”"]/) || [])[1] || name.split(/\s+/)[0] || '[Name]';
+    const sess = $('clConvoDate').value || localIso(new Date());
+    const base = sess > localIso(new Date()) ? sess : localIso(new Date());
+    const dueD = clNextBizDay(base);
+    const due = dueD.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+    const dueWhen = (clNextBizDay(localIso(new Date())).toDateString() === dueD.toDateString()) ? 'tomorrow, ' + due : due;
+    const topic = (o.subtitle && o.subtitle !== 'GROW Coaching') ? o.subtitle : '';
+    const cc = Object.keys(CL_STAFF_EMAIL).filter(n => n !== coach).map(n => CL_STAFF_EMAIL[n]).filter(e => e !== repEmail);
+    const lines = {
+      hi: `Hi ${first},`,
+      thanks: topic ? `Thank you for your time today for our ${topic}.` : 'Thank you for your time today for our coaching session.',
+      ask1: 'I have attached a copy of our coaching log to this email. Please read and leave your comments/acknowledgment in the coaching log. Once done, please sign the document, include the date you signed it, and email it back to me ',
+      due: `on or before the end of your shift ${dueWhen}`,
+      tools: 'You may use these tools to sign the coaching log electronically.',
+      close: 'Let me know if you have any questions.'
+    };
+    const F = 'font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:#222;';
+    const html = `<div style="${F}">
+<p style="margin:0 0 14px">${esc(lines.hi)}</p>
+<p style="margin:0 0 14px">${esc(lines.thanks)}</p>
+<p style="margin:0 0 14px">${esc(lines.ask1)}<b>${esc(lines.due)}</b>.</p>
+<p style="margin:0 0 6px">${esc(lines.tools)}</p>
+<ul style="margin:0 0 14px;padding-left:24px"><li><a href="https://smallpdf.com/sign-pdf">https://smallpdf.com/sign-pdf</a></li><li><a href="https://www.sejda.com/sign-pdf">https://www.sejda.com/sign-pdf</a></li></ul>
+<p style="margin:0 0 14px">${esc(lines.close)}</p>
+<p style="margin:0">Regards,</p>
+</div>`;
+    const plain = [lines.hi, '', lines.thanks, '', lines.ask1 + lines.due + '.', '', lines.tools, '',
+      '- https://smallpdf.com/sign-pdf', '- https://www.sejda.com/sign-pdf', '', lines.close, '', 'Regards,'].join('\n');
+    return { html, plain, to: repEmail, cc: cc.join(', ') };
+  }
+
   function clSetDocOutput(o, colsPlain, subject) {
-    $('clSubjectLine').textContent = clDeDash(subject);
-    window._clEmailSubject = clDeDash(subject);
-    const html = clDeDash(clDocument(o));
-    $('clEmailPreview').innerHTML = html;
-    window._clEmailHtml = html;
-    window._clEmailPlain = clDeDash(clDocumentPlain(o, colsPlain));
+    subject = clDeDash(subject);
+    $('clSubjectLine').textContent = subject;
+    window._clEmailSubject = subject;
+    const doc = clDeDash(clDocument(o));
+    window._clDocHtml = doc;                       // what Download PDF prints
+    const coach = (o.signer && o.signer.name) || '';
+    const em = clCoverEmail(o, coach);
+    window._clEmailHtml = clDeDash(em.html);       // what Copy email copies
+    window._clEmailPlain = clDeDash(em.plain);
+    window._clEmailTo = em.to; window._clEmailCc = em.cc;
+    const chip = 'display:inline-block;margin-left:6px;padding:1px 8px;border:1px solid #C9D2E3;border-radius:10px;background:#fff;font-size:11px;cursor:pointer;color:#0C1F42';
+    $('clEmailPreview').innerHTML =
+      `<div style="font:12px Arial,sans-serif;color:#5B6678;margin:0 0 8px">
+         <div><b>To:</b> ${esc(em.to || '[SDR email]')} <span style="${chip}" onclick="clCopyText(window._clEmailTo,this)">Copy</span></div>
+         <div style="margin-top:4px"><b>Cc:</b> ${esc(em.cc)} <span style="${chip}" onclick="clCopyText(window._clEmailCc,this)">Copy</span></div>
+         <div style="margin-top:4px"><b>Attach:</b> the PDF from <b>Download PDF</b></div>
+       </div>
+       <div style="border:1px solid #DDE4EF;border-radius:8px;padding:14px 16px;background:#fff">${window._clEmailHtml}</div>
+       <div style="margin:18px 0 8px;font:700 11px Arial,sans-serif;letter-spacing:.6px;color:#5B6678;text-transform:uppercase">Coaching log (PDF attachment)</div>
+       <div style="border:1px solid #DDE4EF;border-radius:8px;padding:12px;background:#fff">${doc}</div>`;
+  }
+  async function clCopyText(t, el) {
+    try { await navigator.clipboard.writeText(t || ''); if (el) { const o = el.textContent; el.textContent = 'Copied ✓'; setTimeout(() => el.textContent = o, 1400); } } catch (e) {}
   }
 
   function clRenderBEEF() {
@@ -8526,7 +8592,7 @@ Return ONLY valid JSON (no markdown, no commentary) with this exact shape:
       signer: { name: coach, title: CL_COACH_TITLES[coach] || 'Coach' }
     };
     clSetDocOutput(o, [v('clBfBehavior'), v('clBfExample'), v('clBfEffect'), v('clBfFuture')],
-      `Coaching Log | ${name || '[Name]'} | ${clFmtDate(date) || '[Date]'}`);
+      `Coaching Log - ${name || '[Name]'} - ${clFmtDate(date) || '[Date]'}`);
   }
 
   // "Insert DC stats" for GROW Reality: the rep's outcomes for the session's month, from the
@@ -8626,7 +8692,7 @@ Give 2 to 4 strengths only if the notes support them, 2 to 4 example points, and
   // PDF copy for e-signature: opens the log in a print window sized like the formal log
   // (US Letter, landscape) with a running footer, so "Save as PDF" gives the signable file.
   function clDownloadPdf() {
-    const html = window._clEmailHtml;
+    const html = (_clState.mode === 'beef' || _clState.mode === 'weekly') ? window._clDocHtml : window._clEmailHtml;
     if (!html) { alert('Generate or fill in the coaching log first.'); return; }
     const name = $('clTmName').value.trim() || 'Team member';
     const iso = $('clConvoDate').value || localIso(new Date());
