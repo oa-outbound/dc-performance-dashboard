@@ -7981,7 +7981,8 @@ ${notes}`;
     const opp = asList(g.opportunity).map(x => '- ' + String(x).replace(/^[-•]\s*/, '')).join('\n');
     const wf = g.manual ? g.wayForwardText : (Array.isArray(g.wayForward) ? g.wayForward : []).map((w, i) =>
       `${i + 1}. ${String(w.title || '').replace(/[.]?$/, '.')}\n` + asList(w.steps).map(st => '- ' + String(st).replace(/^[-•]\s*/, '')).join('\n')).join('\n\n');
-    const info = [['Name', esc(tmName) || '[Name]'], ['Date', clFmtDate(sessionDate) || '[Date]'],
+    const legal = clLegalName(tmName);
+    const info = [['Name', esc(legal) || '[Name]'], ['Date', clFmtDate(sessionDate) || '[Date]'],
                   ['Position', 'Client Success Executive'], ['Team Lead', esc(clTeamLeadFor(tmName))],
                   ['Coach', esc(coachName)]];
     if (nextDate) info.push(['Next session', clFmtDate(nextDate)]);
@@ -7992,7 +7993,7 @@ ${notes}`;
       cols: [g.goal ? `<b>${esc(g.goal)}</b>` : '&nbsp;', clRich(g.reality) || '&nbsp;', clRich(opp) || '&nbsp;',
              wf ? '<div style="margin:0 0 6px"><b>Action Plans:</b></div>' + clRich(wf) : '&nbsp;'],
       note: g.note || '',
-      rep: { name: tmName, position: 'Client Success Executive' },
+      rep: { name: legal, position: 'Client Success Executive' },
       signer: { name: coachName, title: CL_COACH_TITLES[coachName] || 'Coach' }
     };
     clSetDocOutput(o, [g.goal || '', g.reality || '', opp, wf], subject);
@@ -8375,6 +8376,26 @@ Return ONLY valid JSON (no markdown, no commentary) with this exact shape:
   };
   const CL_TEAM_TL = { dijumhon:'Jumar Vere', meloace:'Angelica Tanate', ev:'Jonathan Jabonete' };
 
+  // Legal names for formal documents ("SDR Roster as of Nov 20, 2026", Drive 1zpydIAn…),
+  // with the preferred name in quotes where it differs, e.g. Jerry "Devi" Demayo.
+  // The coaching log uses these; the email greeting, subject and file name keep the preferred name.
+  const CL_LEGAL = {
+    arcena:'Charlito Arcena', baliuag:'Charlon Baliuag', bautista:'Dan Marc Anthony “Samara” Bautista',
+    ramos_j:'Jennifer Ramos', jaraula:'Jezza Jezreel Jaraula', malavega:'Jose Carlos Malavega',
+    vosotros:'Joshua Clemen “Diana” Vosotros', balbido:'Justine Balbido', villaruel:'Lance Gabriel Villaruel',
+    benjamin:'Russell Benjamin', velasco:'Edward Winroqs Velasco', tupaz:'Rommel Tupaz',
+    tungol:'Lorenzo Luiz Tungol', bayhon:'Alvin Bayhon', aurelio:'Raymond Aurelio',
+    sarmiento_j:'Julius Lemuel Sarmiento', petras:'Art Joseph Petras', fortez:'Carlo “Charlie” Fortez',
+    bascos:'Jessica Bascos', catolico:'Pedro Catolico', silang:'Gian Carlo Silang',
+    demayo:'Jerry “Devi” Demayo', saminado:'Jervin Christian Saminado', anos:'Marc Anos',
+    gadier:'Vincent Gadier', tiu:'Regine Theresa Tiu', decastro:'Catherine De Castro',
+    cubol:'Jeyson “Jesley” Cubol'
+  };
+  function clLegalName(typed) {
+    const id = typed ? resolveAgent(typed) : null;
+    return (id && CL_LEGAL[id]) || typed;
+  }
+
   // Team lead for a rep, from the roster (TEAMS).
   function clTeamLeadFor(name) {
     const id = name ? resolveAgent(name) : null; if (!id) return '';
@@ -8574,7 +8595,8 @@ Return ONLY valid JSON (no markdown, no commentary) with this exact shape:
     const tlAuto = clTeamLeadFor(name);
     if ($('clBfTL')) $('clBfTL').placeholder = tlAuto || 'Team lead';
     const coach = v('clBfCoach') || 'Rochelle Jan Valdez';
-    const info = [['Name', esc(name) || '[Name]'], ['Date', clFmtDate(date) || '[Date]'],
+    const legal = clLegalName(name);
+    const info = [['Name', esc(legal) || '[Name]'], ['Date', clFmtDate(date) || '[Date]'],
                   ['Position', esc(v('clBfPosition'))], ['Team Lead', esc(v('clBfTL') || tlAuto)],
                   ['Coach', esc(coach)]];
     if (v('clBfPartner')) info.push(['Partner', esc(v('clBfPartner'))]);
@@ -8588,7 +8610,7 @@ Return ONLY valid JSON (no markdown, no commentary) with this exact shape:
       cols: [behHtml || '&nbsp;', clRich(v('clBfExample')) || '&nbsp;', clRich(v('clBfEffect')) || '&nbsp;',
              v('clBfFuture') ? '<div style="margin:0 0 6px"><b>Action Plans:</b></div>' + clRich(v('clBfFuture')) : '&nbsp;'],
       note: v('clBfNote'),
-      rep: { name: name, position: v('clBfPosition') },
+      rep: { name: legal, position: v('clBfPosition') },
       signer: { name: coach, title: CL_COACH_TITLES[coach] || 'Coach' }
     };
     clSetDocOutput(o, [v('clBfBehavior'), v('clBfExample'), v('clBfEffect'), v('clBfFuture')],
@@ -8701,7 +8723,7 @@ Give 2 to 4 strengths only if the notes support them, 2 to 4 example points, and
     const longDate = d.getDate() + ' ' + d.toLocaleDateString('en-US', { month: 'long' }) + ' ' + d.getFullYear();
     const parts = name.split(/\s+/), last = parts.length > 1 ? parts.pop() : '', firstPart = parts.join(' ');
     const fileTitle = `Coaching Log - ${last ? last + ', ' + firstPart : name} - ${shortDate}`;
-    const footer = `Coaching Log | ${name} | ${longDate}`.replace(/"/g, '\\"');
+    const footer = `Coaching Log | ${clLegalName(name)} | ${longDate}`.replace(/"/g, '\\"');
     const w = window.open('', '_blank');
     if (!w) { alert('Your browser blocked the PDF window. Allow pop-ups for this site and try again.'); return; }
     w.document.open();
