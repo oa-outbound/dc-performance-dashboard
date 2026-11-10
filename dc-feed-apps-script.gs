@@ -32,6 +32,7 @@ function pullRecent() {
   var now = new Date();
   var from = fmt_(new Date(now.getTime() - 7 * 24 * 3600 * 1000));
   runPull_('recent', from, monthEnd_(now));
+  pullActivitySafe_(monthStart_(now), fmt_(now));   // SDR Activity: this month to date
 }
 
 /** Last day of the current month, Manila, as YYYY-MM-DD. */
@@ -56,6 +57,11 @@ function pullMonth() {
   if (d <= 7) { m -= 1; if (m === 0) { m = 12; y -= 1; } }
   var from = y + '-' + (m < 10 ? '0' + m : m) + '-01';
   runPull_('month', from, monthEnd_(now));
+  // SDR Activity: settle last month's totals, then this month to date
+  var lastEnd = new Date(Date.UTC(Number(Utilities.formatDate(now, TZ, 'yyyy')), Number(Utilities.formatDate(now, TZ, 'M')) - 1, 0));
+  var lastEndIso = Utilities.formatDate(lastEnd, 'UTC', 'yyyy-MM-dd');
+  pullActivitySafe_(lastEndIso.slice(0, 8) + '01', lastEndIso);
+  pullActivitySafe_(monthStart_(now), fmt_(now));
 }
 
 /**
@@ -178,3 +184,61 @@ function getTab_(name, header) {
 }
 
 function fmt_(d) { return Utilities.formatDate(d, TZ, 'yyyy-MM-dd'); }
+
+// ---------------------------------------------------------------------------
+// SDR Activity: per-SDR range totals from the Outbound Dashboard dials page (dials, leads
+// dialed/handled, connected leads, leads booked, worked days). One row per SDR per month,
+// keyed on the month's first day, replaced on every pull. Leads dialed and connected are
+// distinct leads, so the endpoint returns range totals; never add daily rows together.
+var ACT_URL = 'https://oa-dashboard-web-vdd2e.ondigitalocean.app/api/sdr-activity';
+var ACT_TAB = 'SDR Activity';
+var ACT_FIELDS = ['month', 'sdr', 'wave', 'dials', 'leads_dialed', 'leads_handled', 'connected_leads',
+                  'leads_booked', 'dcs', 'worked_days', 'lead_connection_rate', 'as_of', 'stale'];
+
+function monthStart_(now) { return Utilities.formatDate(now, TZ, 'yyyy-MM') + '-01'; }
+
+// A failed activity pull must not stop the DC feed, and must not overwrite good rows with zeros:
+// the endpoint answers 503 on failure, so the previous figures simply stay until the next pull.
+function pullActivitySafe_(from, to) {
+  try { pullActivity_(from, to); }
+  catch (e) { console.warn('SDR Activity pull skipped (' + from + ' to ' + to + '): ' + e.message); }
+}
+
+function pullActivity_(from, to) {
+  var key = PropertiesService.getScriptProperties().getProperty('DC_FEED_KEY');
+  var res = UrlFetchApp.fetch(ACT_URL + '?from=' + from + '&to=' + to, {
+    headers: { Authorization: 'Bearer ' + key }, muteHttpExceptions: true });
+  if (res.getResponseCode() !== 200) throw new Error('activity feed returned ' + res.getResponseCode());
+  var data = JSON.parse(res.getContentText());
+  if (!Array.isArray(data.rows)) throw new Error('activity feed response missing rows');
+  if (data.stale) console.warn('SDR Activity is stale by ' + data.stale_minutes + ' min; writing last-good figures');
+  var month = from.slice(0, 8) + '01';
+  var sh = getTab_(ACT_TAB, ACT_FIELDS);
+  var last = sh.getLastRow();
+  var kept = last > 1 ? sh.getRange(2, 1, last - 1, ACT_FIELDS.length).getValues()
+                              .filter(function (r) { return String(r[0]) !== month; }) : [];
+  var fresh = data.rows.map(function (o) {
+    return [month, o.sdr, o.wave || '', o.dials || 0, o.leads_dialed || 0, o.leads_handled || 0,
+            o.connected_leads || 0, o.leads_booked || 0, o.dcs || 0, o.worked_days || 0,
+            o.lead_connection_rate == null ? '' : o.lead_connection_rate, to, data.stale ? 'yes' : ''];
+  });
+  var all = kept.concat(fresh).sort(function (a, b) {
+    if (a[0] !== b[0]) return a[0] < b[0] ? 1 : -1;
+    return String(a[1]).localeCompare(String(b[1]));
+  });
+  if (last > 1) sh.getRange(2, 1, last - 1, ACT_FIELDS.length).clearContent();
+  if (all.length) {
+    sh.getRange(2, 1, all.length, 1).setNumberFormat('@');
+    sh.getRange(2, 12, all.length, 1).setNumberFormat('@');
+    sh.getRange(2, 1, all.length, ACT_FIELDS.length).setValues(all);
+  }
+}
+
+/** Run once by hand after pasting this version: fills the SDR Activity tab for last month and this month. */
+function setupActivity() {
+  var now = new Date();
+  var lastEnd = new Date(Date.UTC(Number(Utilities.formatDate(now, TZ, 'yyyy')), Number(Utilities.formatDate(now, TZ, 'M')) - 1, 0));
+  var lastEndIso = Utilities.formatDate(lastEnd, 'UTC', 'yyyy-MM-dd');
+  pullActivity_(lastEndIso.slice(0, 8) + '01', lastEndIso);
+  pullActivity_(monthStart_(now), fmt_(now));
+}

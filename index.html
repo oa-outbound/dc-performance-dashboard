@@ -9838,7 +9838,7 @@ ${html}
   }
   // Activity per SDR per day (dials, connects, leads booked) from the Outbound Dashboard, via the
   // DC Feed sheet's SDR Activity tab once JC exposes it. Empty URL = levers show "waiting for data".
-  const SC_ACTIVITY_CSV_URL = '';
+  const SC_ACTIVITY_CSV_URL = '';   // published CSV of the DC Feed sheet's "SDR Activity" tab
   let _scActRows = null;
   async function scLoadActivity(){
     if (!SC_ACTIVITY_CSV_URL || _scActRows) return;
@@ -9847,7 +9847,7 @@ ${html}
       const h = splitLine(lines[0]).map(x=>x.trim().toLowerCase());
       const ix = k => h.indexOf(k);
       _scActRows = lines.slice(1).map(l=>{ const c=splitLine(l); const n=k=>parseFloat(c[ix(k)])||0;
-        return { date:(c[ix('date')]||'').trim(), sdr:(c[ix('sdr')]||'').trim(), dials:n('dials'), dialed:n('leads_dialed'), connected:n('connected_leads'), leadsBooked:n('leads_booked'), days:n('worked_days') }; });
+        return { date:(c[ix('month')>=0?ix('month'):ix('date')]||'').trim(), sdr:(c[ix('sdr')]||'').trim(), dials:n('dials'), dialed:n('leads_dialed'), connected:n('connected_leads'), leadsBooked:n('leads_booked'), days:n('worked_days') }; });
       if ($('scorecardSection') && $('scorecardSection').style.display!=='none') scPreview();
     } catch (e) { _scActRows = null; }
   }
