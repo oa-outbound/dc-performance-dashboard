@@ -9806,7 +9806,7 @@ ${html}
   // connect figure on the Outbound Dashboard (SC_CONNECT_READY).
   const SC_CONNECT_READY = true;   // fixed by JC 10 Nov 2026: connected leads ÷ leads dialed
   const SC_RATING_COLOR = { 'Needs Improvement':'#C0362C', 'Below Expectations':'#C97000',
-    'Meeting Expectations':'#1A2DB5', 'Above Expectations':'#0E9F6E', 'Exceeding Expectations':'#0B6E4F' };
+    'Meeting Expectations':'#0E9F6E', 'Above Expectations':'#3B82F6', 'Exceeding Expectations':'#1A2DB5' };   // green, light blue, dark blue
   const SC_LEVERS = [
     // Values show 2 decimals, as on JC's Outbound Dashboard (88.89%, 13.63%, 0.57, 291.86); targets
     // keep their own format (tfmt). Ratings use the same 2-decimal figure the SDR sees.
@@ -10055,12 +10055,21 @@ ${html}
     }
     return `As of ${asOfLong}, here is where you stand: ${verdict}.${paired}`;
   }
+  // Acknowledgement window: 24 business hours. Weekends and PH holidays don't count, so a scorecard
+  // sent Friday 3 PM is due Monday 3 PM. Sent on a rest day, the clock starts the next business day,
+  // so it is due at 6 PM on the business day after that.
   function scDeadline(sent){
-    const raw=new Date(sent.getTime()+48*3600*1000), hol=new Set(SC_PH_HOLIDAYS);
+    const hol=new Set(SC_PH_HOLIDAYS);
     const isRest=dt=>{ const dow=dt.getDay(); return dow===0||dow===6||hol.has(localIso(dt)); };
-    let adj=new Date(raw);
-    if (isRest(adj)){ do { adj.setDate(adj.getDate()+1); } while (isRest(adj)); adj.setHours(18,0,0,0); }
-    return { raw, adj };
+    const adj=new Date(sent);
+    if (isRest(adj)){
+      do { adj.setDate(adj.getDate()+1); } while (isRest(adj));
+      adj.setDate(adj.getDate()+1); while (isRest(adj)) adj.setDate(adj.getDate()+1);
+      adj.setHours(18,0,0,0);
+    } else {
+      do { adj.setDate(adj.getDate()+1); } while (isRest(adj));
+    }
+    return { raw:new Date(sent.getTime()+24*3600*1000), adj };
   }
   function scFmtPHT(dt){ return dt.toLocaleString('en-PH',{weekday:'long',month:'long',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit',timeZone:'Asia/Manila'}) + ' PHT'; }
   function scDelta(cur, prior, kind){ if (prior==null) return ''; const d=Math.round(cur-prior); if (d===0) return 'no change'; return `${d>0?'+':''}${d}${kind==='pts'?' pts':''} vs last week`; }
@@ -10291,8 +10300,8 @@ Write in a natural human voice (not robotic, no meta-commentary about being an A
       <div style="font-size:13.5px;line-height:1.6;color:${INK}">${body}</div></div>`;
     const cards=[];
     cards.push(card('Your metrics', scLeverTableHtml(M, false) + `<div style="font-size:11.5px;color:${SLATE};margin-top:8px">Leads booked per day and show-up rate are your main metrics. Ratings: Needs Improvement, Below Expectations, Meeting Expectations, Above Expectations, Exceeding Expectations.</div>`));
-    { const plan=scPlanHtml(M, SLATE); if (plan) cards.push(card('What it takes this month', plan + `<div style="font-size:11.5px;color:${SLATE};margin-top:8px">Based on your own dials per booked lead this month, ${scWorkingDays(M.ym).length} working days in the month, and the DCs already on your calendar.</div>`)); }
     cards.push(card('Targets and ratings', `<div style="font-size:12px;color:${SLATE};margin-bottom:8px">What each rating means for every metric.</div>` + scRefTableHtml(false)));
+    { const plan=scPlanHtml(M, SLATE); if (plan) cards.push(card('What it takes this month', plan + `<div style="font-size:11.5px;color:${SLATE};margin-top:8px">Based on your own dials per booked lead this month, ${scWorkingDays(M.ym).length} working days in the month, and the DCs already on your calendar.</div>`)); }
     if (M.att){ const a=M.att, thru=new Date(a.through+'T00:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric'});
       cards.push(card('Personal Attendance', `<b>Your attendance MTD:</b> ${a.rate.toFixed(2)}% of your scheduled hours (through ${thru}; target 95%).<br>${a.unplanned} unplanned absence${a.unplanned===1?'':'s'} · ${a.ncns} no-call no-show${a.ncns===1?'':'s'} · ${a.late} late day${a.late===1?'':'s'}${a.late?' ('+a.lateMin+' min)':''} · ${a.undertimeMin} min undertime<div style="font-size:11px;color:${SLATE};margin-top:4px">From your GreatDay logs and the attendance notices you sent.</div>`)); }
 
@@ -10308,7 +10317,7 @@ Write in a natural human voice (not robotic, no meta-commentary about being an A
       <div style="padding:14px 26px 4px"><div style="border-top:1px solid ${LINE};padding-top:12px"><div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:${B.mag}">Next step</div><div style="font-size:13.5px;line-height:1.6;color:${INK};margin-top:4px">${esc(nextStep)}</div></div></div>
       ${aiHtml}
       <div style="padding:16px 26px 6px"><div style="background:#FFF4CE;border:1px solid #E6CE6A;border-left:4px solid #C9A227;border-radius:0 8px 8px 0;padding:12px 16px">
-        <div style="font-size:12px;font-weight:800;letter-spacing:.4px;color:#6B5200;margin-bottom:6px">ACKNOWLEDGEMENT REQUIRED WITHIN 48 HOURS</div>
+        <div style="font-size:12px;font-weight:800;letter-spacing:.4px;color:#6B5200;margin-bottom:6px">ACKNOWLEDGEMENT REQUIRED WITHIN 24 BUSINESS HOURS</div>
         <div style="font-size:12.5px;line-height:1.55;color:${INK}">Please reply to this email to <b>confirm you have received and reviewed this scorecard</b> on or before <b>${esc(deadlineLong)}</b>.<br><br>If no reply is received by that time, this scorecard is recorded as received, read, and fully understood, and is logged as part of your performance record.<br><br>If any figure here looks incorrect, raise it in the same reply before the deadline so it can be checked and corrected.</div>
       </div></div>
       <div style="padding:14px 26px 20px;border-top:1px solid ${LINE};margin-top:12px">
@@ -10328,7 +10337,7 @@ Write in a natural human voice (not robotic, no meta-commentary about being an A
     if (M.att){ const a=M.att, pl=(n,w)=>n+' '+w+(n===1?'':'s'); P.push(''); P.push(`PERSONAL ATTENDANCE MTD: ${a.rate.toFixed(2)}% of scheduled hours (through ${a.through}; target 95%). ${pl(a.unplanned,'unplanned absence')}, ${pl(a.ncns,'no-call no-show')}, ${pl(a.late,'late day')} (${a.lateMin} min), ${a.undertimeMin} min undertime. From GreatDay logs and attendance notices.`); }
     P.push(''); P.push('NEXT STEP'); P.push(nextStep);
     if (ai){ P.push(''); P.push('PERFORMANCE REVIEW'); P.push(ai.summary); (ai.suggestions||[]).forEach(s=>P.push('- '+s)); }
-    P.push(''); P.push('ACKNOWLEDGEMENT REQUIRED WITHIN 48 HOURS');
+    P.push(''); P.push('ACKNOWLEDGEMENT REQUIRED WITHIN 24 BUSINESS HOURS');
     P.push(`Please reply to this email to confirm you have received and reviewed this scorecard on or before ${deadlineLong}.`);
     P.push('If no reply is received by that time, this scorecard is recorded as received, read, and fully understood, and is logged as part of your performance record.');
     P.push('If any figure here looks incorrect, raise it in the same reply before the deadline so it can be checked and corrected.');
@@ -10402,7 +10411,7 @@ Write in a natural human voice (not robotic, no meta-commentary about being an A
       <td style="padding:8px 10px">${r.acknowledged_at?'':`<button onclick="scMarkAck('${esc(r.sdr_id)}','${esc(r.sent_day)}')" class="cl-chip">Mark ack</button>`}</td>
     </tr>`; }).join('') : `<tr><td colspan="7" style="padding:20px;text-align:center;color:${SLATE};font-size:13px">No scorecards generated yet. Generate one on the SDR Scorecard page.</td></tr>`;
     $('ackBody').innerHTML = tiles + `<div style="background:#fff;border:1px solid ${BORDER};border-radius:12px;overflow:hidden"><div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;min-width:720px"><thead><tr style="background:${NAVY};color:#fff"><th style="text-align:left;padding:9px 10px;font-size:11px">SDR</th><th style="text-align:left;padding:9px 10px;font-size:11px">Team</th><th style="text-align:left;padding:9px 10px;font-size:11px">Month</th><th style="text-align:left;padding:9px 10px;font-size:11px">Sent</th><th style="text-align:left;padding:9px 10px;font-size:11px">Deadline</th><th style="text-align:left;padding:9px 10px;font-size:11px">Status</th><th></th></tr></thead><tbody>${body}</tbody></table></div></div>
-      <div style="font-size:11px;color:${SLATE};margin-top:8px">Deemed Understood flips automatically once the 48-hour deadline passes with no acknowledgement. ${SC_ACK_CSV_URL ? 'Shared across the team via the Scorecards sheet.' : 'Records are stored in this browser only until a shared sheet is connected.'}</div>`;
+      <div style="font-size:11px;color:${SLATE};margin-top:8px">Deemed Understood flips automatically once the 24-business-hour deadline passes with no acknowledgement. ${SC_ACK_CSV_URL ? 'Shared across the team via the Scorecards sheet.' : 'Records are stored in this browser only until a shared sheet is connected.'}</div>`;
   }
 
   // ══════════════════════════════════════════════════════════════════
