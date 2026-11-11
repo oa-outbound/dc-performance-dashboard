@@ -1496,6 +1496,7 @@
             <div id="scEmail" style="background:#F4F6FB;border:1px solid var(--border);border-radius:10px;padding:16px;max-height:76vh;overflow:auto"></div>
           </div>
         </div>
+        <div id="scRefPanel" style="margin-top:20px"></div>
       </div>
     </div>
 
@@ -10101,6 +10102,22 @@ Write in a natural human voice (not robotic, no meta-commentary about being an A
       ${rows.map(r=>`<tr><td style="${td};color:#1F2733">${r.L.main?'<b>'+esc(r.L.label)+'</b>':esc(r.L.label)}</td><td style="${td};text-align:center;color:#5B6678">${esc(r.target)}</td><td style="${td};text-align:center;font-weight:700;color:#0D1A6E">${r.valueTxt}</td><td style="${td}">${pill(r)}</td></tr>`).join('')}
     </table>`;
   }
+  // Reference: what each rating means, per metric, at the same 2 decimals the ratings use.
+  function scRefRanges(L){
+    if (L.passLine!=null) return ['', 'Under '+L.passLine+'.00', L.passLine+'.00 and up', '', ''];
+    const u = L.key==='leads' ? '' : '%', f = v=>v.toFixed(2)+u, d = v=>Math.round((v-0.01)*100)/100;
+    const exceedFrom = L.exceedIncl ? L.exceed : Math.round((L.exceed+0.01)*100)/100;
+    const above = (L.above===L.exceed && !L.exceedIncl) ? f(L.above) : f(L.above)+' to '+f(d(exceedFrom));
+    return [ 'Under '+f(L.below), f(L.below)+' to '+f(d(L.meeting)), f(L.meeting)+' to '+f(d(L.above)), above, f(exceedFrom)+' and up' ];
+  }
+  function scRefTableHtml(compact){
+    const labels=['Needs Improvement','Below Expectations','Meeting Expectations','Above Expectations','Exceeding Expectations'];
+    const fs = compact ? '10.5px' : '12px', pad = compact ? '6px 6px' : '7px 9px';
+    const hd = (t, col) => `<td bgcolor="${col}" style="background-color:${col};color:#ffffff;padding:${pad};font-size:${fs};font-weight:700;text-align:center;border:1px solid #D9DEEC"><font color="#ffffff">${t}</font></td>`;
+    const head = `<tr>${hd('Metrics','#0D1A6E').replace('text-align:center','text-align:left')}${labels.map(l=>hd(l, SC_RATING_COLOR[l])).join('')}</tr>`;
+    const body = SC_LEVERS.map(L=>`<tr><td style="padding:${pad};font-size:${fs};color:#1F2733;border:1px solid #D9DEEC">${L.main?'<b>'+esc(L.label)+'</b>':esc(L.label)}</td>${scRefRanges(L).map(r=>`<td style="padding:${pad};font-size:${fs};color:#1F2733;text-align:center;border:1px solid #D9DEEC">${r||'<span style="color:#B7C0CE">n/a</span>'}</td>`).join('')}</tr>`).join('');
+    return `<table cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse">${head}${body}</table>`;
+  }
   function scRenderCard(M){
     const el=$('scCard'); if (!el) return;
     const found=scFindMember(M.id), color=found?found.team.color:SC_BRAND.blue, p=M.prior;
@@ -10111,6 +10128,12 @@ Write in a natural human voice (not robotic, no meta-commentary about being an A
       </div>
       <div style="padding:10px 12px">${scLeverTableHtml(M, true)}</div>
       <div style="padding:0 14px 12px;font-size:11px;color:#5B6678;line-height:1.5">DCs this month: <b>${M.booked}</b> by meeting date${p?' ('+esc(scDelta(M.booked,p.booked_dcs,'count'))+')':''}${M.attPct!=null?` · Attendance MTD: <b>${Math.round(M.attPct)}%</b>`:''}</div>
+    </div>`;
+    const ref=$('scRefPanel');
+    if (ref) ref.innerHTML=`<div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 16px">
+      <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:10px">Targets and ratings</div>
+      <div style="overflow-x:auto">${scRefTableHtml(false)}</div>
+      <div style="font-size:11px;color:#5B6678;margin-top:8px">Leads booked per day and show-up rate are the main metrics. Dials per day is a pass line only. Ratings use the score at two decimals, the same as the Outbound Dashboard.</div>
     </div>`;
   }
 
@@ -10141,6 +10164,7 @@ Write in a natural human voice (not robotic, no meta-commentary about being an A
       <div style="font-size:13.5px;line-height:1.6;color:${INK}">${body}</div></div>`;
     const cards=[];
     cards.push(card('Your metrics', scLeverTableHtml(M, false) + `<div style="font-size:11.5px;color:${SLATE};margin-top:8px">Leads booked per day and show-up rate are your main metrics. Ratings: Needs Improvement, Below Expectations, Meeting Expectations, Above Expectations, Exceeding Expectations.</div>`));
+    cards.push(card('Targets and ratings', `<div style="font-size:12px;color:${SLATE};margin-bottom:8px">What each rating means for every metric.</div>` + scRefTableHtml(false)));
     cards.push(card('Booked DCs and pace', `<b>Booked:</b> ${M.booked} of a ${M.target} monthly target. At the steady pace of ${DAILY_TARGET} DCs a day you would be around <b>${M.expectedMtd}</b> by now, so you are ${paceMark}.${paceCallout}`));
     if (M.scheduled>0){
       let line=`<b>Show-up rate:</b> ${(M.suRateRaw*100).toFixed(2)}% (${M.showed} DC${M.showed===1?'':'s'} showed).`;
