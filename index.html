@@ -9850,7 +9850,7 @@ ${html}
   // DC Feed sheet's SDR Activity tab once JC exposes it. Empty URL = levers show "waiting for data".
   // Attendance: the SDR Attendance Tracker (GreatDay logs + attendance notices), via the
   // "SDR Attendance Feed" sheet in 03 Personal Attendance (one row per SDR per month).
-  const SC_ATT_FEED_URL = '';
+  const SC_ATT_FEED_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vT6fNo8SA8ycFSzxUxem1cds5cX_pffecGPIZsIGcAEDWelJub1Jx8SeoK12JvSWKTyJFmLTLuB2nG-/pub?gid=772209291&single=true&output=csv';
   let _scAttRows = null;
   async function scLoadAttFeed(){
     if (!SC_ATT_FEED_URL || _scAttRows) return;
