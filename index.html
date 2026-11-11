@@ -1470,7 +1470,8 @@
             <input id="scSearch" class="cl-input" autocomplete="off" placeholder="Search name…" oninput="scSearchInput()" onfocus="scSearchInput()" onblur="setTimeout(scSearchHide,150)">
             <div id="scSearchBox" style="position:absolute;left:0;right:0;top:100%;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.12);z-index:30;max-height:240px;overflow:auto;display:none"></div>
           </div>
-          <div><label class="cl-label">As of date</label><input type="date" id="scDate" class="cl-input" onchange="scPreview()"></div>
+          <div><label class="cl-label">Month</label><select id="scMonth" class="cl-input" onchange="scMonthChange()"></select></div>
+          <div><label class="cl-label">As of date</label><input type="date" id="scDate" class="cl-input" onchange="scDateChange()"></div>
           <div><label class="cl-label">Sender</label><select id="scSender" class="cl-input" onchange="scPreview()"><option>Rochelle Jan Valdez</option><option>Angelica Tanate</option><option>Jonathan Jabonete</option><option>Jumar Vere</option></select></div>
         </div>
         <div style="display:grid;grid-template-columns:minmax(300px,380px) 1fr;gap:20px;align-items:start">
@@ -1489,6 +1490,7 @@
               <div id="scSubject" style="font-size:12px;color:var(--slate);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0"></div>
               <div style="display:flex;gap:6px;flex-shrink:0">
                 <button id="scCopySubjBtn" onclick="scCopySubject()" class="cl-chip">Copy subject</button>
+                <button id="scPdfBtn" onclick="scDownloadPdf()" class="cl-chip">Download PDF</button>
                 <button id="scCopyBtn" onclick="scCopyEmail()" style="background:#1A2DB5;color:#fff;border:none;border-radius:7px;padding:7px 16px;font-size:12px;font-weight:700;cursor:pointer">Copy email</button>
               </div>
             </div>
@@ -9797,7 +9799,8 @@ ${html}
     return { id,name,team,teamId,ym,booked,target,expectedMtd,paceGap,perDayNeeded,elapsed,totalWD,remaining,stretch,
       scheduled,showed,suRateRaw,suRateAdj,nc,ncReason:(opts.ncReason||'').trim(),attPct,attBreak,att,sessions,topics,
       ramping,tenure:opts.tenure||'',composite,prior:scGetPriorSnapshot(id,asOf),monthLogs,logs,
-      sender:opts.sender||'Rochelle Jan Valdez',asOf,todayIso, act:scActivityFor(id, ym, asOf), pending };
+      sender:opts.sender||'Rochelle Jan Valdez',asOf,todayIso, act:scActivityFor(id, ym, asOf), pending,
+      closed: ym < localIso(new Date()).slice(0,7) };
   }
 
   // ── Derek's levers (27 Sep 2026), rated per lever. Labels never say Bad/Okay/Good/Better.
@@ -10044,7 +10047,8 @@ ${html}
   function scIntro(M){
     const asOfLong=new Date(M.asOf+'T00:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
     const rated=scLevers(M).filter(r=>r.rating);
-    if (!rated.length) return `As of ${asOfLong}, there is not enough data yet to rate your metrics this month.`;
+    const monthLong=new Date(M.ym+'-01T00:00:00').toLocaleDateString('en-US',{month:'long',year:'numeric'});
+    if (!rated.length) return M.closed ? `There is not enough data to rate your metrics for ${monthLong}.` : `As of ${asOfLong}, there is not enough data yet to rate your metrics this month.`;
     const verdict = rated.map(r=>`${r.L.label.toLowerCase()} is ${r.rating.label} (${r.valueTxt})`).join(', ');
     const order=['Needs Improvement','Below Expectations','Meeting Expectations','Above Expectations','Exceeding Expectations'];
     const mains=rated.filter(r=>r.L.main), weakest=[...rated].sort((a,b)=>order.indexOf(a.rating.label)-order.indexOf(b.rating.label))[0];
@@ -10053,7 +10057,7 @@ ${html}
     if (order.indexOf(weakest.rating.label)<2){
       paired = (best && best!==weakest && order.indexOf(best.rating.label)>=2) ? ` The bright spot is your ${best.L.label.toLowerCase()}; the main thing to work on is your ${weakest.L.label.toLowerCase()}.` : ` The main thing to work on is your ${weakest.L.label.toLowerCase()}.`;
     }
-    return `As of ${asOfLong}, here is where you stand: ${verdict}.${paired}`;
+    return M.closed ? `Here is how you finished ${monthLong}: ${verdict}.${paired}` : `As of ${asOfLong}, here is where you stand: ${verdict}.${paired}`;
   }
   // Acknowledgement window: 24 business hours. Weekends and PH holidays don't count, so a scorecard
   // sent Friday 3 PM is due Monday 3 PM. Sent on a rest day, the clock starts the next business day,
@@ -10074,6 +10078,14 @@ ${html}
   function scFmtPHT(dt){ return dt.toLocaleString('en-PH',{weekday:'long',month:'long',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit',timeZone:'Asia/Manila'}) + ' PHT'; }
   function scDelta(cur, prior, kind){ if (prior==null) return ''; const d=Math.round(cur-prior); if (d===0) return 'no change'; return `${d>0?'+':''}${d}${kind==='pts'?' pts':''} vs last week`; }
 
+  // Month filter: the current month runs to today; a past month runs to its last day (full month).
+  function scMonthChange(){
+    const ym=$('scMonth').value, today=localIso(new Date());
+    const [y,m]=ym.split('-').map(Number), last=localIso(new Date(y, m, 0));
+    $('scDate').value = ym===today.slice(0,7) ? today : last;
+    scPreview();
+  }
+  function scDateChange(){ const mo=$('scMonth'), v=$('scDate').value; if (mo && v && [...mo.options].some(o=>o.value===v.slice(0,7))) mo.value=v.slice(0,7); scPreview(); }
   function scYM(){ const d=($('scDate')&&$('scDate').value)||localIso(new Date()); return d.slice(0,7); }
   function scOpts(){ return { nc:$('scNC')?$('scNC').value:0, ncReason:$('scNCReason')?$('scNCReason').value:'', ramping:$('scRamp')?$('scRamp').checked:false, tenure:$('scTenure')?$('scTenure').value:'', sender:$('scSender')?$('scSender').value:'Rochelle Jan Valdez', asOf:($('scDate')&&$('scDate').value)||localIso(new Date()) }; }
 
@@ -10094,6 +10106,10 @@ ${html}
     if (!_scMembers.length){ const seen=new Set(); for (const t of TEAMS){ if (t.id==='poc') continue; for (const m of t.members){ if (m.hidden||seen.has(m.id)) continue; seen.add(m.id); _scMembers.push({id:m.id,name:m.display,team:t.name,teamId:t.id}); } } }
     const tl=$('scTL'); if (tl && !tl.options.length) tl.innerHTML=SC_TL_OPTS.map(o=>`<option value="${o.v}">${esc(o.t)}</option>`).join('');
     const dt=$('scDate'); if (dt && !dt.value){ dt.value=localIso(new Date()); dt.max=localIso(new Date()); }
+    const mo=$('scMonth'); if (mo && !mo.options.length){ const t=new Date(); const opts=[];
+      for (let i=0;i<3;i++){ const d=new Date(t.getFullYear(), t.getMonth()-i, 1); const ym=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+        opts.push(`<option value="${ym}">${d.toLocaleDateString('en-US',{month:'long',year:'numeric'})}${i===0?' (current)':''}</option>`); }
+      mo.innerHTML=opts.join(''); if (dt) mo.value=dt.value.slice(0,7); }
     if (!_scSelId){ const pool=scMemberPool(); if (pool.length){ _scSelId=pool[0].id; if ($('scSearch') && !$('scSearch').value) $('scSearch').value=pool[0].name; } }
     const bt=$('scBatchTeam'); if (bt && !bt.options.length){ bt.innerHTML=TEAMS.filter(t=>t.id!=='poc').map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join(''); }
     if (!_coachLogsLoaded) loadCoachingLogs(false).then(()=>{ if ($('scorecardSection').style.display!=='none') scPreview(); });
@@ -10105,7 +10121,7 @@ ${html}
   }
 
   function scSetCopyEnabled(on){
-    ['scCopyBtn','scCopySubjBtn'].forEach(function(id){ const b=$(id); if (b){ b.disabled=!on; b.style.opacity=on?'1':'.45'; b.style.pointerEvents=on?'auto':'none'; } });
+    ['scCopyBtn','scCopySubjBtn','scPdfBtn'].forEach(function(id){ const b=$(id); if (b){ b.disabled=!on; b.style.opacity=on?'1':'.45'; b.style.pointerEvents=on?'auto':'none'; } });
   }
   function scRender(M, generated){
     _scModel=M;
@@ -10115,12 +10131,12 @@ ${html}
     if ($('scCcLine')) $('scCcLine').innerHTML=built.ccLine;
     const el=$('scEmail'); if (!el) return;
     if (generated){
-      window._scEmailHtml=built.html; window._scEmailPlain=built.plain; window._scEmailSubject=built.subject;
+      window._scEmailHtml=built.html; window._scEmailPlain=built.plain; window._scEmailSubject=built.subject; window._scDocBody=built.docBody;
       el.innerHTML=built.html;
       scSetCopyEnabled(true);
     } else {
       // Gated: blur the draft and require a click so the AI-reviewed version is always the one sent.
-      window._scEmailHtml=''; window._scEmailPlain=''; window._scEmailSubject='';
+      window._scEmailHtml=''; window._scEmailPlain=''; window._scEmailSubject=''; window._scDocBody='';
       el.innerHTML=`<div style="position:relative">
         <div style="filter:blur(6px);pointer-events:none;user-select:none;max-height:72vh;overflow:hidden">${built.html}</div>
         <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:20px">
@@ -10193,13 +10209,13 @@ ${html}
     const voice = senderIsTL
       ? `You are writing as ${M.sender}, ${M.name}'s direct team leader. First person is correct here: "book time with me", "we will review", "I will sit in" are all fine.`
       : `You are writing as ${M.sender}, Operations Manager. You are NOT ${M.name}'s direct team leader${tlName?` — that is ${tlName}, who runs their 1-on-1s, coaching sessions and call reviews`:''}. CRITICAL: never tell ${M.name} to schedule a call, 1-on-1, coaching session or call review "with me", and never say "we will review" their calls or clock-ins. Route every coaching or day-to-day follow-up action to ${tlName||'their team leader'} by name${tlName?` (for example "book your 1-on-1 with ${tlName.split(' ')[0]} this week")`:''}. You may still state the standard you expect and what will be tracked at the supervisor level.`;
-    const prompt=`You are a sales performance coach at Outsource Accelerator (offshore staffing). Review this BDR for ${new Date(M.ym+'-01T00:00:00').toLocaleDateString('en-US',{month:'long',year:'numeric'})} (month to date). "DC" = Discovery Call. Data is through ${asOfLong}.
+    const prompt=`You are a sales performance coach at Outsource Accelerator (offshore staffing). Review this BDR for ${new Date(M.ym+'-01T00:00:00').toLocaleDateString('en-US',{month:'long',year:'numeric'})} (${M.closed?'full month':'month to date'}). "DC" = Discovery Call. Data is through ${asOfLong}.
 ${voice}
 NAME: ${M.name} (team ${M.team})
 LEVER RATINGS against the team targets (use these exact labels, never "Bad/Okay/Good/Better"): ${scLeverSummary(M)}. Leads booked per day and show-up rate are the main levers. Meeting Expectations: 0.50 leads booked a day, 65% show-up, 1.2% close rate, 12% connect rate. Do not rate or criticise dial volume.
-WHAT IT TAKES THIS MONTH: ${scPlanPlain(M).join('; ') || 'not enough data'}
+WHAT IT TAKES THIS MONTH: ${M.closed ? 'n/a, the month has ended' : (scPlanPlain(M).join('; ') || 'not enough data')}
 Show-up: ${M.scheduled>0?(M.suRateRaw*100).toFixed(2)+'% ('+M.showed+' of '+M.scheduled+' scheduled showed)':'no scheduled DCs yet'}.
-Attendance MTD (SDR Attendance Tracker): ${M.att?M.att.rate.toFixed(2)+'% of scheduled hours through '+M.att.through+', '+M.att.unplanned+' unplanned absences, '+M.att.ncns+' no-call no-shows, '+M.att.late+' late days ('+M.att.lateMin+' min), '+M.att.undertimeMin+' min undertime':'not available'}.
+Attendance ${M.closed?'for the month':'MTD'} (SDR Attendance Tracker): ${M.att?M.att.rate.toFixed(2)+'% of scheduled hours through '+M.att.through+', '+M.att.unplanned+' unplanned absences, '+M.att.ncns+' no-call no-shows, '+M.att.late+' late days ('+M.att.lateMin+' min), '+M.att.undertimeMin+' min undertime':'not available'}.
 Trajectory: ${wowTxt}.
 Coaching this month: ${M.sessions} session(s)${M.topics.length?', topics: '+M.topics.join(', '):''}.
 Recent coaching notes (newest first):
@@ -10280,12 +10296,13 @@ Write in a natural human voice (not robotic, no meta-commentary about being an A
     const intro = (ai && ai.headline) ? ai.headline : scIntro(M);
     const first=esc((M.name||'').split(' ')[0])||'there';
     const monthLbl=new Date(M.ym+'-01T00:00:00').toLocaleDateString('en-US',{month:'long',year:'numeric'});
+    const period=M.closed?'full month':'month to date', kind=M.closed?'Monthly Scorecard':'Weekly Scorecard';
     const staff=SC_TEAM_STAFF[M.teamId]||{};
     const ccNames=[staff.tl].concat(staff.sme||[]).filter(Boolean).filter(n=>n!==M.sender);
     const senderTitle = ['Angelica Tanate','Jonathan Jabonete','Jumar Vere'].includes(M.sender) ? 'Team Lead, SD Outbound' : 'Operations Manager, SD Outbound';
     const senderFirst = (M.sender||'').split(' ')[0];
     const ccLine=`<b>To:</b> ${esc(M.name)} &nbsp;&nbsp; <b>Cc:</b> ${ccNames.map(esc).join(', ')||'—'}`;
-    const subject=`[SDR SCORECARD] ${monthLbl} · ${scWeekOfMonth(M.asOf)} · ${M.name} · from ${senderFirst}`;
+    const subject=`[SDR SCORECARD] ${monthLbl} · ${M.closed?'Full month':scWeekOfMonth(M.asOf)} · ${M.name} · from ${senderFirst}`;
     const nowStamp=M.sent.toLocaleString('en-PH',{month:'long',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit',timeZone:'Asia/Manila'})+' PHT';
     const deadlineLong=scFmtPHT(M.deadline.adj);
     const rampLine=M.ramping?`<div style="font-size:12.5px;color:${SLATE};margin-top:6px">Your target has been adjusted for tenure${M.tenure?' ('+esc(M.tenure)+' weeks)':''}, so this reflects a scaled goal of ${M.target} DCs.</div>`:'';
@@ -10301,16 +10318,20 @@ Write in a natural human voice (not robotic, no meta-commentary about being an A
     const cards=[];
     cards.push(card('Your metrics', scLeverTableHtml(M, false) + `<div style="font-size:11.5px;color:${SLATE};margin-top:8px">Leads booked per day and show-up rate are your main metrics. Ratings: Needs Improvement, Below Expectations, Meeting Expectations, Above Expectations, Exceeding Expectations.</div>`));
     cards.push(card('Targets and ratings', `<div style="font-size:12px;color:${SLATE};margin-bottom:8px">What each rating means for every metric.</div>` + scRefTableHtml(false)));
-    { const plan=scPlanHtml(M, SLATE); if (plan) cards.push(card('What it takes this month', plan + `<div style="font-size:11.5px;color:${SLATE};margin-top:8px">Based on your own dials per booked lead this month, ${scWorkingDays(M.ym).length} working days in the month, and the DCs already on your calendar.</div>`)); }
+    { const plan=M.closed?'':scPlanHtml(M, SLATE); if (plan) cards.push(card('What it takes this month', plan + `<div style="font-size:11.5px;color:${SLATE};margin-top:8px">Based on your own dials per booked lead this month, ${scWorkingDays(M.ym).length} working days in the month, and the DCs already on your calendar.</div>`)); }
     if (M.att){ const a=M.att, thru=new Date(a.through+'T00:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric'});
-      cards.push(card('Personal Attendance', `<b>Your attendance MTD:</b> ${a.rate.toFixed(2)}% of your scheduled hours (through ${thru}; target 95%).<br>${a.unplanned} unplanned absence${a.unplanned===1?'':'s'} · ${a.ncns} no-call no-show${a.ncns===1?'':'s'} · ${a.late} late day${a.late===1?'':'s'}${a.late?' ('+a.lateMin+' min)':''} · ${a.undertimeMin} min undertime<div style="font-size:11px;color:${SLATE};margin-top:4px">From your GreatDay logs and the attendance notices you sent.</div>`)); }
+      cards.push(card('Personal Attendance', `<b>Your attendance ${M.closed?'for the month':'MTD'}:</b> ${a.rate.toFixed(2)}% of your scheduled hours (through ${thru}; target 95%).<br>${a.unplanned} unplanned absence${a.unplanned===1?'':'s'} · ${a.ncns} no-call no-show${a.ncns===1?'':'s'} · ${a.late} late day${a.late===1?'':'s'}${a.late?' ('+a.lateMin+' min)':''} · ${a.undertimeMin} min undertime<div style="font-size:11px;color:${SLATE};margin-top:4px">From your GreatDay logs and the attendance notices you sent.</div>`)); }
 
     const aiHtml = ai ? `<div style="padding:14px 26px 4px"><div style="border-top:1px solid ${LINE};padding-top:12px"><div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:${B.mag}">Performance review</div><div style="font-size:13px;line-height:1.6;color:${INK};margin-top:4px">${esc(ai.summary)}</div>${ai.suggestions&&ai.suggestions.length?`<ul style="margin:8px 0 0;padding-left:18px">${ai.suggestions.map(s=>`<li style="font-size:13px;line-height:1.55;color:${INK};margin-bottom:4px">${esc(s)}</li>`).join('')}</ul>`:''}</div></div>` : '';
+    const docBody=clDeDash(`<div style="font-size:13px;line-height:1.6;color:${INK};margin:0 0 10px">${esc(intro)}${rampLine}</div>
+      ${cards.join('')}
+      <div style="border:1px solid ${LINE};border-radius:8px;padding:12px 14px;margin-bottom:10px;background:#fff"><div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:${B.mag};margin-bottom:5px">Next step</div><div style="font-size:13px;line-height:1.6;color:${INK}">${esc(nextStep)}</div></div>
+      ${aiHtml.replace(/padding:14px 26px 4px/,'padding:0 0 6px')}`);
     const html=clDeDash(`<div style="font-family:${SC_FONT};background:#fff;max-width:640px;margin:0 auto;border:1px solid ${LINE};border-radius:10px;overflow:hidden">
       <div style="background:${B.navy};padding:20px 26px">
         <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;color:#9FB0FF;text-transform:uppercase">Outsource Accelerator · SD Outbound</div>
         <div style="color:#fff;font-size:20px;font-weight:700;margin-top:6px">${esc(M.name)}</div>
-        <div style="color:rgba(255,255,255,.7);font-size:12px;margin-top:3px">Weekly Scorecard · ${esc(monthLbl)} (month to date) · ${esc(M.team)}</div>
+        <div style="color:rgba(255,255,255,.7);font-size:12px;margin-top:3px">${kind} · ${esc(monthLbl)} (${period}) · ${esc(M.team)}</div>
       </div>
       <div style="padding:18px 26px 4px;font-size:13.5px;line-height:1.6;color:${INK}">Hi ${first},<br><br>${esc(intro)}${rampLine}</div>
       <div style="padding:12px 26px 2px">${cards.join('')}</div>
@@ -10318,7 +10339,7 @@ Write in a natural human voice (not robotic, no meta-commentary about being an A
       ${aiHtml}
       <div style="padding:16px 26px 6px"><div style="background:#FFF4CE;border:1px solid #E6CE6A;border-left:4px solid #C9A227;border-radius:0 8px 8px 0;padding:12px 16px">
         <div style="font-size:12px;font-weight:800;letter-spacing:.4px;color:#6B5200;margin-bottom:6px">ACKNOWLEDGEMENT REQUIRED WITHIN 24 BUSINESS HOURS</div>
-        <div style="font-size:12.5px;line-height:1.55;color:${INK}">Please reply to this email to <b>confirm you have received and reviewed this scorecard</b> on or before <b>${esc(deadlineLong)}</b>.<br><br>If no reply is received by that time, this scorecard is recorded as received, read, and fully understood, and is logged as part of your performance record.<br><br>If any figure here looks incorrect, raise it in the same reply before the deadline so it can be checked and corrected.</div>
+        <div style="font-size:12.5px;line-height:1.55;color:${INK}">Please reply to this email to <b>confirm you have received and reviewed this scorecard</b> on or before <b>${esc(deadlineLong)}</b>. With your reply, <b>sign and date the attached PDF copy</b> (add any comments) and send it back. You may use <a href="https://smallpdf.com/sign-pdf">smallpdf.com/sign-pdf</a> or <a href="https://www.sejda.com/sign-pdf">sejda.com/sign-pdf</a>.<br><br>If no reply is received by that time, this scorecard is recorded as received, read, and fully understood, and is logged as part of your performance record.<br><br>If any figure here looks incorrect, raise it in the same reply before the deadline so it can be checked and corrected.</div>
       </div></div>
       <div style="padding:14px 26px 20px;border-top:1px solid ${LINE};margin-top:12px">
         <div style="font-size:12.5px;color:${INK}">${esc(M.sender)}<br><span style="font-size:11px;color:${SLATE}">${esc(senderTitle)}</span></div>
@@ -10328,17 +10349,17 @@ Write in a natural human voice (not robotic, no meta-commentary about being an A
     </div>`);
 
     const P=[];
-    P.push(`SDR WEEKLY SCORECARD - ${monthLbl} (month to date)`);
+    P.push(`SDR ${kind.toUpperCase()} - ${monthLbl} (${period})`);
     P.push(`${M.name} | ${M.team}`);
     P.push(''); P.push('YOUR METRICS'); scLevers(M).filter(r=>!r.L.info).forEach(r=>P.push(`${r.L.label}: target ${r.target}, your score ${r.valueTxt}, ${r.rating?r.rating.label:(r.note||'')}`));
     P.push(`To: ${M.name}   Cc: ${ccNames.join(', ')||'-'}`); P.push('');
     P.push(`Hi ${(M.name||'').split(' ')[0]||'there'},`); P.push(''); P.push(intro); if (M.ramping) P.push(`(Target adjusted for tenure: scaled goal ${M.target} DCs.)`); P.push('');
-    { const pl=scPlanPlain(M); if (pl.length){ P.push(''); P.push('WHAT IT TAKES THIS MONTH'); pl.forEach(l=>P.push(l)); } }
-    if (M.att){ const a=M.att, pl=(n,w)=>n+' '+w+(n===1?'':'s'); P.push(''); P.push(`PERSONAL ATTENDANCE MTD: ${a.rate.toFixed(2)}% of scheduled hours (through ${a.through}; target 95%). ${pl(a.unplanned,'unplanned absence')}, ${pl(a.ncns,'no-call no-show')}, ${pl(a.late,'late day')} (${a.lateMin} min), ${a.undertimeMin} min undertime. From GreatDay logs and attendance notices.`); }
+    { const pl=M.closed?[]:scPlanPlain(M); if (pl.length){ P.push(''); P.push('WHAT IT TAKES THIS MONTH'); pl.forEach(l=>P.push(l)); } }
+    if (M.att){ const a=M.att, pl=(n,w)=>n+' '+w+(n===1?'':'s'); P.push(''); P.push(`PERSONAL ATTENDANCE ${M.closed?'FOR THE MONTH':'MTD'}: ${a.rate.toFixed(2)}% of scheduled hours (through ${a.through}; target 95%). ${pl(a.unplanned,'unplanned absence')}, ${pl(a.ncns,'no-call no-show')}, ${pl(a.late,'late day')} (${a.lateMin} min), ${a.undertimeMin} min undertime. From GreatDay logs and attendance notices.`); }
     P.push(''); P.push('NEXT STEP'); P.push(nextStep);
     if (ai){ P.push(''); P.push('PERFORMANCE REVIEW'); P.push(ai.summary); (ai.suggestions||[]).forEach(s=>P.push('- '+s)); }
     P.push(''); P.push('ACKNOWLEDGEMENT REQUIRED WITHIN 24 BUSINESS HOURS');
-    P.push(`Please reply to this email to confirm you have received and reviewed this scorecard on or before ${deadlineLong}.`);
+    P.push(`Please reply to this email to confirm you have received and reviewed this scorecard on or before ${deadlineLong}. With your reply, sign and date the attached PDF copy (add any comments) and send it back. You may use https://smallpdf.com/sign-pdf or https://www.sejda.com/sign-pdf.`);
     P.push('If no reply is received by that time, this scorecard is recorded as received, read, and fully understood, and is logged as part of your performance record.');
     P.push('If any figure here looks incorrect, raise it in the same reply before the deadline so it can be checked and corrected.');
     P.push(''); P.push(M.sender); P.push(senderTitle);
@@ -10346,7 +10367,7 @@ Write in a natural human voice (not robotic, no meta-commentary about being an A
     P.push("This scorecard is a performance snapshot shared for your awareness and coaching. It is not, on its own, a disciplinary action. Any formal process would follow the company's standard procedures separately.");
     P.push(`Figures as of ${nowStamp}. Source: Outbound Dashboard and the SDR Attendance Tracker.`);
 
-    return { html, plain:clDeDash(P.join('\n')), subject:clDeDash(subject), ccLine };
+    return { html, plain:clDeDash(P.join('\n')), subject:clDeDash(subject), ccLine, docBody };
   }
 
   function scBatchPreview(){
@@ -10360,6 +10381,70 @@ Write in a natural human voice (not robotic, no meta-commentary about being an A
     $('scBatch').innerHTML = rows.length ? `<div style="display:flex;justify-content:flex-end;gap:14px;font-size:10px;color:#5B6678;padding-bottom:4px"><span>Leads/day</span><span>Show-up</span></div>` + rows.map(r=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #EEF2F7;font-size:12px"><span style="color:var(--ink)">${esc(r.name)}</span><span style="display:flex;gap:10px;align-items:center">${chip(r.ld)}${chip(r.su)}</span></div>`).join('') : '<div style="font-size:12px;color:var(--slate)">No team members.</div>';
   }
 
+  // Signable PDF copy of the scorecard, in the same letterhead style as the coaching log:
+  // details block, the scorecard sections, then comments + signature lines kept on one page.
+  function scDownloadPdf(){
+    const M=_scModel, body=window._scDocBody;
+    if (!M || !body){ alert('Click "Generate scorecard" first, then download the PDF.'); return; }
+    const D=CL_DOC, F="font-family:Helvetica,Arial,sans-serif;";
+    const legal=clLegalName(M.name), tl=scTLName(M.teamId)||'';
+    const asOf=new Date(M.asOf+'T00:00:00');
+    const longDate=asOf.getDate()+' '+asOf.toLocaleDateString('en-US',{month:'long'})+' '+asOf.getFullYear();
+    const shortDate=asOf.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    const monthLbl=new Date(M.ym+'-01T00:00:00').toLocaleDateString('en-US',{month:'long',year:'numeric'});
+    const senderTitle=['Angelica Tanate','Jonathan Jabonete','Jumar Vere'].includes(M.sender)?'Team Lead, SD Outbound':'Operations Manager, SD Outbound';
+    const lbl=t=>`<td style="${F}width:13%;padding:2px 0;font-size:11px;font-weight:700;color:${D.navy}">${t}</td>`;
+    const val=t=>`<td style="${F}width:37%;padding:2px 8px 2px 0;font-size:11px;color:${D.ink}">${t}</td>`;
+    const sign=(n,t)=>`<td style="${F}width:50%;vertical-align:bottom;padding:44px 10px 0"><div style="border-top:1.5px solid #111;padding-top:4px;text-align:center;font-size:11px;color:${D.ink}"><b>${esc(n)}</b><br>${esc(t)}<br><span style="display:inline-block;margin-top:10px;color:${D.mute}">Date: ____________________</span></div></td>`;
+    const doc=`<table cellpadding="0" cellspacing="0" border="0" width="100%" style="${F}background:#fff;color:${D.ink}">
+  <tr><td colspan="2" style="padding:4px 0 8px"><img src="${CL_LOGO_URL}" alt="Outsource Accelerator" width="110" style="display:block;width:110px;height:auto"></td>
+      <td colspan="2" style="${F}padding:4px 0 8px;text-align:right;font-size:10px;line-height:1.5;color:${D.navy}">info@outsourceaccelerator.com<br>outsourceaccelerator.com<br>+ (632) 8562.8025</td></tr>
+  <tr><td colspan="4" style="border-top:3px solid ${D.navy};font-size:0;line-height:0">&nbsp;</td></tr>
+  <tr><td colspan="4" style="${F}padding:10px 0 2px;font-size:22px;font-weight:800;color:${D.navy}">SDR SCORECARD</td></tr>
+  <tr><td colspan="4" style="${F}padding:0 0 8px;font-size:11.5px;font-weight:700">Sales Development, Outbound Department &nbsp;|&nbsp; ${M.closed?'Monthly Scorecard':'Weekly Scorecard'}, ${esc(monthLbl)} (${M.closed?'full month':'month to date'})</td></tr>
+  <tr>${lbl('Name')}${val(esc(legal))}${lbl(M.closed?'Period':'As of')}${val(esc(M.closed?monthLbl+' (full month)':longDate))}</tr>
+  <tr>${lbl('Position')}${val('Client Success Executive')}${lbl('Team Lead')}${val(esc(tl))}</tr>
+  <tr>${lbl('Team')}${val(esc(M.team))}${lbl('Sent by')}${val(esc(M.sender))}</tr>
+</table>
+<div class="sc-body" style="padding:10px 0 0">${body}</div>
+<table cellpadding="0" cellspacing="0" border="0" width="100%" style="${F}background:#fff;color:${D.ink}">
+  <tr><td colspan="4" style="padding:6px 0 0"><table width="100%" cellpadding="0" cellspacing="0" border="0" style="page-break-inside:avoid;break-inside:avoid">
+    <tr><td colspan="2" style="${F}background:${D.navy};color:#fff;font-size:11px;font-weight:700;letter-spacing:.6px;padding:6px 10px">EMPLOYEE'S COMMENTS / ACKNOWLEDGEMENT</td></tr>
+    <tr><td colspan="2" style="border:1px solid ${D.line};height:46px">&nbsp;</td></tr>
+    <tr><td colspan="2" style="${F}padding:8px 0 0;font-size:11px;font-style:italic">Acknowledged by:</td></tr>
+    <tr>${sign(legal,'Client Success Executive')}${sign(M.sender, senderTitle)}</tr>
+    <tr><td colspan="2" style="border-top:1px solid ${D.line};padding:8px 0 0;${F}font-size:9px;line-height:1.6;text-align:center">Confidential Property of Outsource Accelerator &nbsp;||&nbsp; This document and its contents shall not be disclosed, reproduced, or distributed without prior written consent from the Company.<br><span style="color:${D.mute}">Outsource Accelerator, Unit 4301 43F, One Corporate Center, Julia Vargas Corner Meralco Ave., Ortigas Center, Pasig City, Philippines 1605</span></td></tr>
+  </table></td></tr>
+</table>`;
+    const parts=M.name.split(/\s+/), last=parts.length>1?parts.pop():'', firstPart=parts.join(' ');
+    const fileTitle=`Scorecard - ${last?last+', '+firstPart:M.name} - ${M.closed?monthLbl:shortDate}`;
+    const footer=`SDR Scorecard | ${legal} | ${longDate}`.replace(/"/g,'\\"');
+    const w=window.open('','_blank');
+    if (!w){ alert('Your browser blocked the PDF window. Allow pop-ups for this site and try again.'); return; }
+    w.document.open();
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(fileTitle)}</title>
+<style>
+  @page { size: letter portrait; margin: 0.45in 0.5in 0.55in;
+    @top-left { content: "\\00a0"; } @top-center { content: "\\00a0"; } @top-right { content: "\\00a0"; }
+    @bottom-left { content: "${footer}"; font: 8pt Helvetica, Arial, sans-serif; color: #444; }
+    @bottom-right { content: "Page " counter(page) " of " counter(pages); font: 8pt Helvetica, Arial, sans-serif; color: #444; } }
+  html, body { margin: 0; background: #fff; }
+  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; font-family: Helvetica, Arial, sans-serif; zoom: 0.9; }
+  tr, img { page-break-inside: avoid; }
+  .sc-body > div { break-inside: avoid; page-break-inside: avoid; }
+  .bar { padding: 10px 14px; background: #0C1F42; color: #fff; font: 13px Helvetica, Arial, sans-serif; }
+  @media print { .bar { display: none; } }
+</style></head><body>
+<div class="bar">Choose <b>Save as PDF</b> as the destination, then Save. The file is named for you. If a date or web address shows at the top or bottom, open <b>More settings</b> and untick <b>Headers and footers</b>.</div>
+${doc}
+<script>
+  (function(){ var imgs=[].slice.call(document.images), left=imgs.length;
+    function go(){ setTimeout(function(){ window.focus(); window.print(); }, 200); }
+    if (!left) return go();
+    imgs.forEach(function(im){ if (im.complete){ if(--left===0) go(); } else { im.onload=im.onerror=function(){ if(--left===0) go(); }; } }); })();
+<\/script></body></html>`);
+    w.document.close();
+  }
   async function scCopyEmail(){ const btn=$('scCopyBtn'); try { await navigator.clipboard.write([new ClipboardItem({ 'text/html':new Blob([window._scEmailHtml||''],{type:'text/html'}), 'text/plain':new Blob([window._scEmailPlain||''],{type:'text/plain'}) })]); } catch { try { await navigator.clipboard.writeText(window._scEmailPlain||''); } catch {} } if (btn){ btn.textContent='Copied ✓'; setTimeout(()=>btn.textContent='Copy email',1600); } }
   async function scCopySubject(){ try { await navigator.clipboard.writeText(window._scEmailSubject||''); } catch {} }
 
