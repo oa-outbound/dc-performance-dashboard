@@ -9966,25 +9966,33 @@ ${html}
   function scPlanHtml(M, SLATE){
     const P=scPlan(M), rows=[];
     const goalTxt=x=> x.stay ? 'to stay at Exceeding Expectations' : 'to reach '+x.goal;
+    // Derek's coaching is about conversion and show-up, so his #1 fix sits with the metric that
+    // is short: leads booked first (below Meeting), otherwise attended DCs (show-up below Meeting).
+    const leadsShort = P.leads && P.leads.goal==='Meeting Expectations';
+    const suShort = P.showup && P.showup.goal==='Meeting Expectations';
     if (P.leads){ const x=P.leads;
+      let dialNote='';
+      if (x.dialsNow!=null){
+        const gap=Math.ceil(x.dialsNeeded - x.dialsNow);
+        if (x.dialsNeeded > 450) dialNote=` That is more than a shift realistically allows, so the bigger gap is converting your calls (see Leads to book).`;
+        else if (gap<=0) dialNote=` You are dialing enough.`;
+        else if (x.dialsNow >= 0.9*x.dialsNeeded) dialNote=` You are close, about ${gap} short a day.`;
+        else dialNote=` You are about ${gap} short a day.`;
+      }
       rows.push(['Dials per day', x.dialsNow!=null?x.dialsNow.toFixed(2):'n/a',
-        `About <b>${x.dialsNeeded}</b> a day ${goalTxt(x)} (${x.tgt.toFixed(2)} leads a day)${x.ownRate?', at your current conversion rate':', at the team target rates'}.`
-          + (x.dialsNow!=null && x.dialsNow>=x.dialsNeeded
-              ? (x.goal==='Meeting Expectations'
-                  ? ` You are already dialing enough, so the gap is call quality: how you open, handle objections and close for the meeting.` + scCallQualityTxt(M)
-                  : ` You are already dialing enough, so the focus is keeping your conversion where it is.`)
-              : (x.dialsNeeded > 450
-                  ? ` That is more than a shift realistically allows, so the bigger gap is call quality: how you open, handle objections and close for the meeting.` + scCallQualityTxt(M)
-                  : ''))]);
-      rows.push(['Leads to book', `${x.have} so far`,
-        x.more>0 ? `<b>${x.more}</b> more this month ${goalTxt(x)}${x.perDay!=null?`, about ${x.perDay.toFixed(2)} a working day for the ${x.remaining} working day${x.remaining===1?'':'s'} left`:''}.`
-                 : `You have already booked enough leads for this month ${goalTxt(x)}. Keep booking to build next month's DCs.`]);
+        `About <b>${x.dialsNeeded}</b> a day ${goalTxt(x)} (${x.tgt.toFixed(2)} leads a day)${x.ownRate?', at your current conversion rate':', at the team target rates'}.${dialNote}`]);
+      let leadTxt = x.more>0 ? `<b>${x.more}</b> more this month ${goalTxt(x)}${x.perDay!=null?`, about ${x.perDay.toFixed(2)} a working day for the ${x.remaining} working day${x.remaining===1?'':'s'} left`:''}.`
+                             : `You have already booked enough leads for this month ${goalTxt(x)}. Keep booking to build next month's DCs.`;
+      if (leadsShort) leadTxt += ` To turn more of your connected calls into booked leads, focus on call quality: how you open, handle objections and close for the meeting.` + scCallQualityTxt(M);
+      rows.push(['Leads to book', `${x.have} so far`, leadTxt]);
     }
     if (P.showup){ const x=P.showup;
-      rows.push(['Attended DCs', `${x.showed} of ${x.held} held`,
-        x.pend===0 ? `No upcoming DCs on the calendar this month yet. Book and confirm new DCs to move your show-up rate.`
+      let suTxt = x.pend===0 ? `No upcoming DCs on the calendar this month yet. Book and confirm new DCs to move your show-up rate.`
+        : x.need===0 ? `You are on track ${goalTxt(x)} with the DCs already held. Keep confirming each of your <b>${x.pend}</b> upcoming DC${x.pend===1?'':'s'} so it stays that way.`
         : x.reachable ? `At least <b>${x.need}</b> of your <b>${x.pend}</b> upcoming DC${x.pend===1?'':'s'} this month need${x.need===1?'s':''} to be attended ${goalTxt(x)}.`
-        : `Even if all ${x.pend} upcoming DC${x.pend===1?' is':'s are'} attended, your show-up rate would reach ${x.best.toFixed(2)}% this month. Confirm and remind every lead to get as close as you can.`]);
+        : `Even if all ${x.pend} upcoming DC${x.pend===1?' is':'s are'} attended, your show-up rate would reach ${x.best.toFixed(2)}% this month. Confirm and remind every lead to get as close as you can.`;
+      if (suShort && !leadsShort) suTxt += ` Get a real commitment on every booking.` + scCallQualityTxt(M);
+      rows.push(['Attended DCs', `${x.showed} of ${x.held} held`, suTxt]);
     }
     if (!rows.length) return '';
     const td='padding:7px 9px;border-bottom:1px solid #EEF2F7;vertical-align:top;font-size:12.5px;color:#1F2733';
