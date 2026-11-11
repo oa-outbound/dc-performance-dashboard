@@ -9869,6 +9869,32 @@ ${html}
     const r = _scAttRows.find(x=>x.month.slice(0,7)===ym && resolveAgent(x.sdr)===id);
     return r && r.days>0 && r.rate!=null ? r : null;
   }
+  // Derek's weekly coaching: each SDR's latest "#1 fix" (from his "SDR Weekly Review" emails),
+  // via the "Derek Weekly Coaching Feed" sheet. Columns: sdr, week, sent, fix_title, fix_detail.
+  const SC_DEREK_CSV_URL = '';
+  let _scDerekRows = null;
+  async function scLoadDerek(){
+    if (!SC_DEREK_CSV_URL || _scDerekRows) return;
+    try {
+      const lines = splitCsvRows((await (await fetch(SC_DEREK_CSV_URL + (SC_DEREK_CSV_URL.includes('?')?'&':'?') + 't=' + Date.now())).text()).trim());
+      const h = splitLine(lines[0]).map(x=>x.trim().toLowerCase()), ix=k=>h.indexOf(k);
+      const unq = v => String(v||'').trim().replace(/^"|"$/g,'').replace(/""/g,'"');
+      _scDerekRows = lines.slice(1).map(l=>{ const c=splitLine(l); return { sdr:unq(c[ix('sdr')]), week:unq(c[ix('week')]), sent:unq(c[ix('sent')]), title:unq(c[ix('fix_title')]), detail:unq(c[ix('fix_detail')]) }; })
+        .filter(r=>r.sdr && (r.title||r.detail));
+      if ($('scorecardSection') && $('scorecardSection').style.display!=='none') scPreview();
+    } catch (e) { _scDerekRows = null; }
+  }
+  function scDerekFix(id){
+    if (!_scDerekRows) return null;
+    const rows=_scDerekRows.filter(r=>resolveAgent(r.sdr)===id).sort((a,b)=>b.sent.localeCompare(a.sent));
+    return rows[0] || null;
+  }
+  // Call-quality pointer: Derek's actual #1 fix when we have it, otherwise point to his email.
+  function scCallQualityTxt(M){
+    const d=scDerekFix(M.id);
+    if (d) return ` Derek's #1 fix for you from his weekly coaching (${esc(d.week)}): <b>${esc(d.title.replace(/[.]?$/,'.'))}</b> ${esc(d.detail)} Work on it with your team lead.`;
+    return ` Work on the #1 fix in Derek's latest weekly coaching email (subject "SDR Weekly Review") with your team lead.`;
+  }
   const SC_ACTIVITY_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRqF61wqBJ2Njdpsdiq6chRlUXRLlIqxmJz9RNi07l8QDe7PTLszv5849zADDBAmrfV7fNBUYakfcar/pub?gid=1197545403&single=true&output=csv';   // published CSV of the DC Feed sheet's "SDR Activity" tab
   let _scActRows = null;
   async function scLoadActivity(){
@@ -9897,8 +9923,11 @@ ${html}
     const isTL = ['Angelica Tanate','Jonathan Jabonete','Jumar Vere'].includes(M.sender);
     if (!rows.length) return 'Every metric with data is at or above Meeting Expectations. Keep your current cadence, and keep your main metrics (leads booked per day and show-up rate) at Above Expectations or higher.';
     const tips={ leads:'book more leads per working day (Meeting Expectations is 0.50 a day)', showup:'run the full post-booking reminder cadence so more DCs show (Meeting Expectations is 65%), keeping each reminder helpful and well spaced so you never bombard the lead',
-      close:'convert more of your connected calls into booked leads (Meeting Expectations is 1.2%)', connect:'lift your connect rate' };
-    return 'Focus for the coming week: ' + rows.slice(0,2).map(r=>tips[r.L.key]).join(', and ') + '. ' + (isTL ? 'Let me know if you would like to work on these together.' : 'Your team lead can work on these with you.');
+      close:'convert more of your connected calls into booked leads (Meeting Expectations is 1.2%)',
+      connect:'lift your connect rate (Meeting Expectations is 12%). Connect rate comes from the Outbound Outreach field in HubSpot, so update it after every call to keep your numbers accurate. If you already do, rotate the phone numbers you dial from so they do not get tagged as spam' };
+    const picked=rows.slice(0,2), conn=rows.find(r=>r.L.key==='connect');
+    if (conn && !picked.includes(conn)) picked.push(conn);   // connect guidance is about data accuracy, always include it
+    return 'Focus for the coming week: ' + picked.map(r=>tips[r.L.key]).join('; and ') + '. ' + (isTL ? 'Let me know if you would like to work on these together.' : 'Your team lead can work on these with you.');
   }
   // "What it takes": the dials, leads and attended DCs needed to reach the next rating (or to stay
   // at Exceeding). Dials needed = target leads a day x the SDR's own dials per booked lead (the TL
@@ -9935,10 +9964,10 @@ ${html}
         `About <b>${x.dialsNeeded}</b> a day ${goalTxt(x)} (${x.tgt.toFixed(2)} leads a day)${x.ownRate?', at your current conversion rate':', at the team target rates'}.`
           + (x.dialsNow!=null && x.dialsNow>=x.dialsNeeded
               ? (x.goal==='Meeting Expectations'
-                  ? ` You are already dialing enough, so the gap is call quality: how you open, handle objections and close for the meeting. Work on the #1 fix in Derek's latest weekly coaching email (subject "SDR Weekly Review") with your team lead.`
+                  ? ` You are already dialing enough, so the gap is call quality: how you open, handle objections and close for the meeting.` + scCallQualityTxt(M)
                   : ` You are already dialing enough, so the focus is keeping your conversion where it is.`)
               : (x.dialsNeeded > 450
-                  ? ` That is more than a shift realistically allows, so the bigger gap is call quality: how you open, handle objections and close for the meeting. Work on the #1 fix in Derek's latest weekly coaching email (subject "SDR Weekly Review") with your team lead.`
+                  ? ` That is more than a shift realistically allows, so the bigger gap is call quality: how you open, handle objections and close for the meeting.` + scCallQualityTxt(M)
                   : ''))]);
       rows.push(['Leads to book', `${x.have} so far`,
         x.more>0 ? `<b>${x.more}</b> more this month ${goalTxt(x)}${x.perDay!=null?`, about ${x.perDay.toFixed(2)} a working day for the ${x.remaining} working day${x.remaining===1?'':'s'} left`:''}.`
@@ -10047,6 +10076,7 @@ ${html}
     if (!_attLoaded && !_attLoading) loadAttendanceData();
     scLoadActivity();
     scLoadAttFeed();
+    scLoadDerek();
     scPreview();
   }
 
@@ -10209,7 +10239,7 @@ Write in a natural human voice (not robotic, no meta-commentary about being an A
         <div style="color:rgba(255,255,255,.85);font-size:11px">${esc(M.team)} · ${new Date(M.ym+'-01T00:00:00').toLocaleDateString('en-US',{month:'long',year:'numeric'})} · as of ${esc(M.asOf)}</div>
       </div>
       <div style="padding:10px 12px">${scLeverTableHtml(M, true)}</div>
-      <div style="padding:0 14px 12px;font-size:11px;color:#5B6678;line-height:1.5">DCs this month: <b>${M.booked}</b> by meeting date${p?' ('+esc(scDelta(M.booked,p.booked_dcs,'count'))+')':''}${M.att?` · Attendance MTD: <b>${M.att.rate.toFixed(2)}%</b> (through ${esc(M.att.through)})`:''}</div>
+      <div style="padding:0 14px 12px;font-size:11px;color:#5B6678;line-height:1.5">DCs this month: <b>${M.booked}</b> by meeting date${p?' ('+esc(scDelta(M.booked,p.booked_dcs,'count'))+')':''}${M.att?` · Personal attendance MTD: <b>${M.att.rate.toFixed(2)}%</b> (through ${esc(M.att.through)})`:''}</div>
     </div>`;
     const ref=$('scRefPanel');
     if (ref) ref.innerHTML=`<div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 16px">
@@ -10249,7 +10279,7 @@ Write in a natural human voice (not robotic, no meta-commentary about being an A
     { const plan=scPlanHtml(M, SLATE); if (plan) cards.push(card('What it takes this month', plan + `<div style="font-size:11.5px;color:${SLATE};margin-top:8px">Based on your own dials per booked lead this month, ${scWorkingDays(M.ym).length} working days in the month, and the DCs already on your calendar.</div>`)); }
     cards.push(card('Targets and ratings', `<div style="font-size:12px;color:${SLATE};margin-bottom:8px">What each rating means for every metric.</div>` + scRefTableHtml(false)));
     if (M.att){ const a=M.att, thru=new Date(a.through+'T00:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric'});
-      cards.push(card('Attendance', `<b>Attendance MTD:</b> ${a.rate.toFixed(2)}% of your scheduled hours (through ${thru}; target 95%).<br>${a.unplanned} unplanned absence${a.unplanned===1?'':'s'} · ${a.ncns} no-call no-show${a.ncns===1?'':'s'} · ${a.late} late day${a.late===1?'':'s'}${a.late?' ('+a.lateMin+' min)':''} · ${a.undertimeMin} min undertime<div style="font-size:11px;color:${SLATE};margin-top:4px">From your GreatDay logs and the attendance notices you sent.</div>`)); }
+      cards.push(card('Personal Attendance', `<b>Your attendance MTD:</b> ${a.rate.toFixed(2)}% of your scheduled hours (through ${thru}; target 95%).<br>${a.unplanned} unplanned absence${a.unplanned===1?'':'s'} · ${a.ncns} no-call no-show${a.ncns===1?'':'s'} · ${a.late} late day${a.late===1?'':'s'}${a.late?' ('+a.lateMin+' min)':''} · ${a.undertimeMin} min undertime<div style="font-size:11px;color:${SLATE};margin-top:4px">From your GreatDay logs and the attendance notices you sent.</div>`)); }
 
     const aiHtml = ai ? `<div style="padding:14px 26px 4px"><div style="border-top:1px solid ${LINE};padding-top:12px"><div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:${B.mag}">Performance review</div><div style="font-size:13px;line-height:1.6;color:${INK};margin-top:4px">${esc(ai.summary)}</div>${ai.suggestions&&ai.suggestions.length?`<ul style="margin:8px 0 0;padding-left:18px">${ai.suggestions.map(s=>`<li style="font-size:13px;line-height:1.55;color:${INK};margin-bottom:4px">${esc(s)}</li>`).join('')}</ul>`:''}</div></div>` : '';
     const html=clDeDash(`<div style="font-family:${SC_FONT};background:#fff;max-width:640px;margin:0 auto;border:1px solid ${LINE};border-radius:10px;overflow:hidden">
@@ -10280,7 +10310,7 @@ Write in a natural human voice (not robotic, no meta-commentary about being an A
     P.push(`To: ${M.name}   Cc: ${ccNames.join(', ')||'-'}`); P.push('');
     P.push(`Hi ${(M.name||'').split(' ')[0]||'there'},`); P.push(''); P.push(intro); if (M.ramping) P.push(`(Target adjusted for tenure: scaled goal ${M.target} DCs.)`); P.push('');
     { const pl=scPlanPlain(M); if (pl.length){ P.push(''); P.push('WHAT IT TAKES THIS MONTH'); pl.forEach(l=>P.push(l)); } }
-    if (M.att){ const a=M.att, pl=(n,w)=>n+' '+w+(n===1?'':'s'); P.push(''); P.push(`ATTENDANCE MTD: ${a.rate.toFixed(2)}% of scheduled hours (through ${a.through}; target 95%). ${pl(a.unplanned,'unplanned absence')}, ${pl(a.ncns,'no-call no-show')}, ${pl(a.late,'late day')} (${a.lateMin} min), ${a.undertimeMin} min undertime. From GreatDay logs and attendance notices.`); }
+    if (M.att){ const a=M.att, pl=(n,w)=>n+' '+w+(n===1?'':'s'); P.push(''); P.push(`PERSONAL ATTENDANCE MTD: ${a.rate.toFixed(2)}% of scheduled hours (through ${a.through}; target 95%). ${pl(a.unplanned,'unplanned absence')}, ${pl(a.ncns,'no-call no-show')}, ${pl(a.late,'late day')} (${a.lateMin} min), ${a.undertimeMin} min undertime. From GreatDay logs and attendance notices.`); }
     P.push(''); P.push('NEXT STEP'); P.push(nextStep);
     if (ai){ P.push(''); P.push('PERFORMANCE REVIEW'); P.push(ai.summary); (ai.suggestions||[]).forEach(s=>P.push('- '+s)); }
     P.push(''); P.push('ACKNOWLEDGEMENT REQUIRED WITHIN 48 HOURS');
