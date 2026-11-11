@@ -10095,7 +10095,7 @@ ${html}
     const q=($('scSearch')?$('scSearch').value:'').trim().toLowerCase();
     const pool=scMemberPool().filter(m=>!q||m.name.toLowerCase().includes(q));
     if (!pool.length){ box.style.display='none'; return; }
-    box.innerHTML=pool.slice(0,20).map(m=>`<div onmousedown="scPick('${esc(m.id)}')" style="padding:8px 12px;font-size:13px;color:var(--ink);cursor:pointer;border-bottom:1px solid #EEF2F7">${esc(m.name)} <span style="color:var(--slate);font-size:11px">· ${esc(m.team)}</span></div>`).join('');
+    box.innerHTML=pool.map(m=>`<div onmousedown="scPick('${esc(m.id)}')" style="padding:8px 12px;font-size:13px;color:var(--ink);cursor:pointer;border-bottom:1px solid #EEF2F7">${esc(m.name)} <span style="color:var(--slate);font-size:11px">· ${esc(m.team)}</span></div>`).join('');
     box.style.display='';
   }
   function scSearchHide(){ const box=$('scSearchBox'); if (box) box.style.display='none'; }
