@@ -9871,7 +9871,7 @@ ${html}
   }
   // Derek's weekly coaching: each SDR's latest "#1 fix" (from his "SDR Weekly Review" emails),
   // via the "Derek Weekly Coaching Feed" sheet. Columns: sdr, week, sent, fix_title, fix_detail.
-  const SC_DEREK_CSV_URL = '';
+  const SC_DEREK_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRQ8jvt8BXXPbOMEAEsNYNXuAY6Bt3CSBdRUJOMf6aZ4y_KCjaD05U8y_zGDKAhhtWdmTDi0oy7vl7E/pub?gid=510296441&single=true&output=csv';
   let _scDerekRows = null;
   async function scLoadDerek(){
     if (!SC_DEREK_CSV_URL || _scDerekRows) return;
