@@ -9876,10 +9876,17 @@ ${html}
   async function scLoadDerek(){
     if (!SC_DEREK_CSV_URL || _scDerekRows) return;
     try {
-      const lines = splitCsvRows((await (await fetch(SC_DEREK_CSV_URL + (SC_DEREK_CSV_URL.includes('?')?'&':'?') + 't=' + Date.now())).text()).trim());
-      const h = splitLine(lines[0]).map(x=>x.trim().toLowerCase()), ix=k=>h.indexOf(k);
-      const unq = v => String(v||'').trim().replace(/^"|"$/g,'').replace(/""/g,'"');
-      _scDerekRows = lines.slice(1).map(l=>{ const c=splitLine(l); return { sdr:unq(c[ix('sdr')]), week:unq(c[ix('week')]), sent:unq(c[ix('sent')]), title:unq(c[ix('fix_title')]), detail:unq(c[ix('fix_detail')]) }; })
+      // Full CSV parse (quoted fields, "" escapes): Derek's lines contain quoted speech.
+      const txt = await (await fetch(SC_DEREK_CSV_URL + (SC_DEREK_CSV_URL.includes('?')?'&':'?') + 't=' + Date.now())).text();
+      const rows=[]; let row=[], f='', q=false;
+      for (let i=0;i<txt.length;i++){ const ch=txt[i];
+        if (q){ if (ch==='"'){ if (txt[i+1]==='"'){ f+='"'; i++; } else q=false; } else f+=ch; }
+        else if (ch==='"') q=true; else if (ch===','){ row.push(f); f=''; }
+        else if (ch==='\n' || ch==='\r'){ if (ch==='\r' && txt[i+1]==='\n') i++; row.push(f); rows.push(row); row=[]; f=''; }
+        else f+=ch; }
+      if (f || row.length){ row.push(f); rows.push(row); }
+      const h = rows[0].map(x=>x.trim().toLowerCase()), ix=k=>h.indexOf(k), g=(c,k)=>String(c[ix(k)]||'').trim();
+      _scDerekRows = rows.slice(1).map(c=>({ sdr:g(c,'sdr'), week:g(c,'week'), sent:g(c,'sent'), title:g(c,'fix_title'), detail:g(c,'fix_detail') }))
         .filter(r=>r.sdr && (r.title||r.detail));
       if ($('scorecardSection') && $('scorecardSection').style.display!=='none') scPreview();
     } catch (e) { _scDerekRows = null; }
