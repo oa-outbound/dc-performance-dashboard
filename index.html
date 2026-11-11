@@ -9764,8 +9764,8 @@ ${html}
     for (const row of rawRows){ if (!daySet.has(normalizeDate(row.rawDate)) || resolveAgent(row.agent)!==id) continue;
       if (row.sp2 && row.sp2status==='') pending++; }
     const scheduled=su.happened, showed=su.yes;
-    const attObj=_attLoaded?getAttendanceForDates(id,monthBiz):null;
-    const attPct=attObj && attObj.scheduled>0 ? attObj.rate : null;
+    const att=scAttFor(id, ym);          // SDR Attendance Tracker (GreatDay + notices)
+    const attPct=att ? att.rate : null;
     const logs=scRepLogs(name);
     const monthLogs=logs.filter(l=>(l.date||'').slice(0,7)===ym);
     const sessions=monthLogs.length;
@@ -9791,11 +9791,11 @@ ${html}
     let composite=0;
     if (availW>0) for (const c of comps){ if (!c.avail) continue; composite += Math.min(1,Math.max(0,c.s))*(c.w*100/availW); }
     composite=Math.round(composite);
-    const attBreak = (attObj && attObj.scheduled>0) ? { present:attObj.present, late:attObj.late, absent:attObj.absent, undertime:attObj.undertime, scheduled:attObj.scheduled } : null;
+    const attBreak = null;
     // Is the full monthly target realistically reachable in the days left?
     const stretch = perDayNeeded!=null && perDayNeeded > DAILY_TARGET*2;
     return { id,name,team,teamId,ym,booked,target,expectedMtd,paceGap,perDayNeeded,elapsed,totalWD,remaining,stretch,
-      scheduled,showed,suRateRaw,suRateAdj,nc,ncReason:(opts.ncReason||'').trim(),attPct,attBreak,sessions,topics,
+      scheduled,showed,suRateRaw,suRateAdj,nc,ncReason:(opts.ncReason||'').trim(),attPct,attBreak,att,sessions,topics,
       ramping,tenure:opts.tenure||'',composite,prior:scGetPriorSnapshot(id,asOf),monthLogs,logs,
       sender:opts.sender||'Rochelle Jan Valdez',asOf,todayIso, act:scActivityFor(id, ym, asOf), pending };
   }
@@ -9848,6 +9848,27 @@ ${html}
   }
   // Activity per SDR per day (dials, connects, leads booked) from the Outbound Dashboard, via the
   // DC Feed sheet's SDR Activity tab once JC exposes it. Empty URL = levers show "waiting for data".
+  // Attendance: the SDR Attendance Tracker (GreatDay logs + attendance notices), via the
+  // "SDR Attendance Feed" sheet in 03 Personal Attendance (one row per SDR per month).
+  const SC_ATT_FEED_URL = '';
+  let _scAttRows = null;
+  async function scLoadAttFeed(){
+    if (!SC_ATT_FEED_URL || _scAttRows) return;
+    try {
+      const lines = splitCsvRows((await (await fetch(SC_ATT_FEED_URL + (SC_ATT_FEED_URL.includes('?')?'&':'?') + 't=' + Date.now())).text()).trim());
+      const h = splitLine(lines[0]).map(x=>x.trim().toLowerCase()), ix=k=>h.indexOf(k);
+      _scAttRows = lines.slice(1).map(l=>{ const c=splitLine(l), n=k=>parseFloat(c[ix(k)]); return {
+        month:(c[ix('month')]||'').trim(), sdr:(c[ix('sdr')]||'').trim().replace(/^"|"$/g,''), days:n('scheduled_days')||0,
+        rate: isNaN(n('attendance_rate')) ? null : n('attendance_rate'), unplanned:n('unplanned_absences')||0, ncns:n('ncns_days')||0,
+        late:n('late_days')||0, lateMin:n('late_minutes')||0, undertimeMin:n('undertime_minutes')||0, through:(c[ix('through')]||'').trim() }; });
+      if ($('scorecardSection') && $('scorecardSection').style.display!=='none') scPreview();
+    } catch (e) { _scAttRows = null; }
+  }
+  function scAttFor(id, ym){
+    if (!_scAttRows) return null;
+    const r = _scAttRows.find(x=>x.month.slice(0,7)===ym && resolveAgent(x.sdr)===id);
+    return r && r.days>0 && r.rate!=null ? r : null;
+  }
   const SC_ACTIVITY_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRqF61wqBJ2Njdpsdiq6chRlUXRLlIqxmJz9RNi07l8QDe7PTLszv5849zADDBAmrfV7fNBUYakfcar/pub?gid=1197545403&single=true&output=csv';   // published CSV of the DC Feed sheet's "SDR Activity" tab
   let _scActRows = null;
   async function scLoadActivity(){
@@ -9875,7 +9896,7 @@ ${html}
     rows.sort((a,b)=>(b.L.main?1:0)-(a.L.main?1:0));
     const isTL = ['Angelica Tanate','Jonathan Jabonete','Jumar Vere'].includes(M.sender);
     if (!rows.length) return 'Every metric with data is at or above Meeting Expectations. Keep your current cadence, and keep your main metrics (leads booked per day and show-up rate) at Above Expectations or higher.';
-    const tips={ leads:'book more leads per working day (Meeting Expectations is 0.50 a day)', showup:'run the full post-booking reminder cadence so more DCs show (Meeting Expectations is 65%)',
+    const tips={ leads:'book more leads per working day (Meeting Expectations is 0.50 a day)', showup:'run the full post-booking reminder cadence so more DCs show (Meeting Expectations is 65%), keeping each reminder helpful and well spaced so you never bombard the lead',
       close:'convert more of your connected calls into booked leads (Meeting Expectations is 1.2%)', connect:'lift your connect rate' };
     return 'Focus for the coming week: ' + rows.slice(0,2).map(r=>tips[r.L.key]).join(', and ') + '. ' + (isTL ? 'Let me know if you would like to work on these together.' : 'Your team lead can work on these with you.');
   }
@@ -9912,7 +9933,13 @@ ${html}
     if (P.leads){ const x=P.leads;
       rows.push(['Dials per day', x.dialsNow!=null?x.dialsNow.toFixed(2):'n/a',
         `About <b>${x.dialsNeeded}</b> a day ${goalTxt(x)} (${x.tgt.toFixed(2)} leads a day)${x.ownRate?', at your current conversion rate':', at the team target rates'}.`
-          + (x.dialsNow!=null && x.dialsNow>=x.dialsNeeded ? ` You are already dialing enough, so the focus is ${x.ownRate?'keeping your conversion where it is':'turning more connected calls into booked leads'}.` : '')]);
+          + (x.dialsNow!=null && x.dialsNow>=x.dialsNeeded
+              ? (x.goal==='Meeting Expectations'
+                  ? ` You are already dialing enough, so the gap is call quality: how you open, handle objections and close for the meeting. Work on the #1 fix from Derek's latest weekly coaching review with your team lead.`
+                  : ` You are already dialing enough, so the focus is keeping your conversion where it is.`)
+              : (x.dialsNeeded > 450
+                  ? ` That is more than a shift realistically allows, so the bigger gap is call quality: how you open, handle objections and close for the meeting. Work on the #1 fix from Derek's latest weekly coaching review with your team lead.`
+                  : ''))]);
       rows.push(['Leads to book', `${x.have} so far`,
         x.more>0 ? `<b>${x.more}</b> more this month ${goalTxt(x)}${x.perDay!=null?`, about ${x.perDay.toFixed(2)} a working day for the ${x.remaining} working day${x.remaining===1?'':'s'} left`:''}.`
                  : `You have already booked enough leads for this month ${goalTxt(x)}. Keep booking to build next month's DCs.`]);
@@ -10019,6 +10046,7 @@ ${html}
     if (!_coachLogsLoaded) loadCoachingLogs(false).then(()=>{ if ($('scorecardSection').style.display!=='none') scPreview(); });
     if (!_attLoaded && !_attLoading) loadAttendanceData();
     scLoadActivity();
+    scLoadAttFeed();
     scPreview();
   }
 
@@ -10096,17 +10124,16 @@ ${html}
     // so a rep with 0 late and 7 absent of 8 logged days sailed through it and got praised for
     // "showing up to work". Absence breaks reliability at least as hard as lateness does.
     let attRule = '';
-    if (ab && ab.scheduled > 0) {
-      const onTime = Math.round(ab.present / ab.scheduled * 100);
-      const missed = ab.absent + ab.late;
-      const unreliable = ab.absent >= 2 || missed * 4 >= ab.scheduled;   // 2+ absences, or a quarter of days missed/late
-      const parts = [ab.present + ' present', ab.late + ' late', ab.absent + ' absent'].join(', ');
-      const concerns = [];
-      if (ab.absent) concerns.push(`${ab.absent} absence${ab.absent===1?'':'s'}`);
-      if (ab.late)   concerns.push(`${ab.late} late day${ab.late===1?'':'s'}`);
+    const at=M.att;
+    if (at){
+      const concerns=[];
+      if (at.unplanned) concerns.push(`${at.unplanned} unplanned absence${at.unplanned===1?'':'s'}`);
+      if (at.ncns) concerns.push(`${at.ncns} no-call no-show day${at.ncns===1?'':'s'}`);
+      if (at.late) concerns.push(`${at.late} late day${at.late===1?'':'s'} (${at.lateMin} min)`);
+      const unreliable = at.rate<95 || at.unplanned>=2 || at.ncns>=1;
       attRule = unreliable
-        ? `ATTENDANCE IS A PROBLEM HERE, NOT A BRIGHT SPOT: ${parts} across ${ab.scheduled} logged days (on-time ${onTime}%). Do NOT say this rep is showing up, is showing up consistently, or that attendance is the good news. Name the ${concerns.join(' and ')} as a concern in its own right.`
-        : `Attendance is at the expected baseline (${parts} of ${ab.scheduled} logged days, on-time ${onTime}%). It is an expectation, not an achievement, so do not lead with it or praise it as a win.`;
+        ? `ATTENDANCE IS A PROBLEM HERE, NOT A BRIGHT SPOT: ${at.rate.toFixed(2)}% of scheduled hours worked through ${at.through}${concerns.length?' with '+concerns.join(', '):''}. Do NOT praise attendance; name it as a concern.`
+        : `Attendance is at the expected baseline (${at.rate.toFixed(2)}% of scheduled hours through ${at.through}). It is an expectation, not an achievement, so do not lead with it or praise it.`;
     }
     const tlName=scTLName(M.teamId), senderIsTL = !!tlName && M.sender===tlName;
     const voice = senderIsTL
@@ -10118,13 +10145,13 @@ NAME: ${M.name} (team ${M.team})
 LEVER RATINGS against the team targets (use these exact labels, never "Bad/Okay/Good/Better"): ${scLeverSummary(M)}. Leads booked per day and show-up rate are the main levers. Meeting Expectations: 0.50 leads booked a day, 65% show-up, 1.2% close rate, 12% connect rate. Do not rate or criticise dial volume.
 WHAT IT TAKES THIS MONTH: ${scPlanPlain(M).join('; ') || 'not enough data'}
 Show-up: ${M.scheduled>0?(M.suRateRaw*100).toFixed(2)+'% ('+M.showed+' of '+M.scheduled+' scheduled showed)':'no scheduled DCs yet'}.
-Attendance MTD: ${M.attPct!=null?Math.round(M.attPct)+'%':'not available'}${ab?`, made up of ${ab.present} present, ${ab.late} late, ${ab.absent} absent, ${ab.undertime} undertime across ${ab.scheduled} logged days. On-time (present only, not late): ${Math.round(ab.present/ab.scheduled*100)}%`:''}.
+Attendance MTD (SDR Attendance Tracker): ${M.att?M.att.rate.toFixed(2)+'% of scheduled hours through '+M.att.through+', '+M.att.unplanned+' unplanned absences, '+M.att.ncns+' no-call no-shows, '+M.att.late+' late days ('+M.att.lateMin+' min), '+M.att.undertimeMin+' min undertime':'not available'}.
 Trajectory: ${wowTxt}.
 Coaching this month: ${M.sessions} session(s)${M.topics.length?', topics: '+M.topics.join(', '):''}.
 Recent coaching notes (newest first):
 ${notes}
 
-Write in a natural human voice (not robotic, no meta-commentary about being an AI). ${attRule} The attendance percent counts late arrivals as present, so judge reliability from the present/late/absent breakdown above, never from the percent alone. Use ONLY the figures given above: do not mention any metric that is not listed here (if a lever has no rating, do not discuss it), and do not invent numbers. Always call them "DCs" or "Discovery Calls", never "calls". Do NOT use em dashes. Return ONLY valid JSON with three fields:
+Write in a natural human voice (not robotic, no meta-commentary about being an AI). ${attRule} The attendance figure is hours worked against scheduled hours from GreatDay; the target is 95%. Use ONLY the figures given above: do not mention any metric that is not listed here (if a lever has no rating, do not discuss it), and do not invent numbers. Always call them "DCs" or "Discovery Calls", never "calls". Do NOT use em dashes. Return ONLY valid JSON with three fields:
 {"headline":"2 to 3 sentences that OPEN the email: state where their levers stand as of ${asOfLong}, lead with the booked DC pace (the real headline), note the week-over-week direction, and name the one main thing to fix. Name a bright spot ONLY if the figures above genuinely support one; if every metric is below standard, say that plainly rather than manufacturing a positive", "summary":"2 to 3 sentence deeper read", "suggestions":["specific action","specific action","specific action"]}`;
     try {
       const data=await clAiRelay({ model:'claude-haiku-4-5-20251001', max_tokens:700, messages:[{role:'user',content:prompt}] });
@@ -10182,7 +10209,7 @@ Write in a natural human voice (not robotic, no meta-commentary about being an A
         <div style="color:rgba(255,255,255,.85);font-size:11px">${esc(M.team)} · ${new Date(M.ym+'-01T00:00:00').toLocaleDateString('en-US',{month:'long',year:'numeric'})} · as of ${esc(M.asOf)}</div>
       </div>
       <div style="padding:10px 12px">${scLeverTableHtml(M, true)}</div>
-      <div style="padding:0 14px 12px;font-size:11px;color:#5B6678;line-height:1.5">DCs this month: <b>${M.booked}</b> by meeting date${p?' ('+esc(scDelta(M.booked,p.booked_dcs,'count'))+')':''}${M.attPct!=null?` · Attendance MTD: <b>${Math.round(M.attPct)}%</b>`:''}</div>
+      <div style="padding:0 14px 12px;font-size:11px;color:#5B6678;line-height:1.5">DCs this month: <b>${M.booked}</b> by meeting date${p?' ('+esc(scDelta(M.booked,p.booked_dcs,'count'))+')':''}${M.att?` · Attendance MTD: <b>${M.att.rate.toFixed(2)}%</b> (through ${esc(M.att.through)})`:''}</div>
     </div>`;
     const ref=$('scRefPanel');
     if (ref) ref.innerHTML=`<div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 16px">
@@ -10221,7 +10248,8 @@ Write in a natural human voice (not robotic, no meta-commentary about being an A
     cards.push(card('Your metrics', scLeverTableHtml(M, false) + `<div style="font-size:11.5px;color:${SLATE};margin-top:8px">Leads booked per day and show-up rate are your main metrics. Ratings: Needs Improvement, Below Expectations, Meeting Expectations, Above Expectations, Exceeding Expectations.</div>`));
     { const plan=scPlanHtml(M, SLATE); if (plan) cards.push(card('What it takes this month', plan + `<div style="font-size:11.5px;color:${SLATE};margin-top:8px">Based on your own dials per booked lead this month, ${scWorkingDays(M.ym).length} working days in the month, and the DCs already on your calendar.</div>`)); }
     cards.push(card('Targets and ratings', `<div style="font-size:12px;color:${SLATE};margin-bottom:8px">What each rating means for every metric.</div>` + scRefTableHtml(false)));
-    if (M.attPct!=null){ const ab=M.attBreak; const abTxt = ab ? ` (${ab.present} present, ${ab.late} late, ${ab.absent} absent${ab.undertime?', '+ab.undertime+' undertime':''} of ${ab.scheduled} logged days)` : ''; const onTime = (ab && ab.late>0) ? ` <b>On-time (not late): ${Math.round(ab.present/ab.scheduled*100)}%</b>.` : ''; cards.push(card('Attendance', `<b>Attendance MTD:</b> ${Math.round(M.attPct)}%${abTxt}.${onTime}`)); }
+    if (M.att){ const a=M.att, thru=new Date(a.through+'T00:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric'});
+      cards.push(card('Attendance', `<b>Attendance MTD:</b> ${a.rate.toFixed(2)}% of your scheduled hours (through ${thru}; target 95%).<br>${a.unplanned} unplanned absence${a.unplanned===1?'':'s'} · ${a.ncns} no-call no-show${a.ncns===1?'':'s'} · ${a.late} late day${a.late===1?'':'s'}${a.late?' ('+a.lateMin+' min)':''} · ${a.undertimeMin} min undertime<div style="font-size:11px;color:${SLATE};margin-top:4px">From your GreatDay logs and the attendance notices you sent.</div>`)); }
 
     const aiHtml = ai ? `<div style="padding:14px 26px 4px"><div style="border-top:1px solid ${LINE};padding-top:12px"><div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:${B.mag}">Performance review</div><div style="font-size:13px;line-height:1.6;color:${INK};margin-top:4px">${esc(ai.summary)}</div>${ai.suggestions&&ai.suggestions.length?`<ul style="margin:8px 0 0;padding-left:18px">${ai.suggestions.map(s=>`<li style="font-size:13px;line-height:1.55;color:${INK};margin-bottom:4px">${esc(s)}</li>`).join('')}</ul>`:''}</div></div>` : '';
     const html=clDeDash(`<div style="font-family:${SC_FONT};background:#fff;max-width:640px;margin:0 auto;border:1px solid ${LINE};border-radius:10px;overflow:hidden">
@@ -10241,7 +10269,7 @@ Write in a natural human voice (not robotic, no meta-commentary about being an A
       <div style="padding:14px 26px 20px;border-top:1px solid ${LINE};margin-top:12px">
         <div style="font-size:12.5px;color:${INK}">${esc(M.sender)}<br><span style="font-size:11px;color:${SLATE}">${esc(senderTitle)}</span></div>
         <div style="font-size:10.5px;color:${SLATE};margin-top:10px;line-height:1.5">This scorecard is a performance snapshot shared for your awareness and coaching. It is not, on its own, a disciplinary action. Any formal process would follow the company's standard procedures separately.</div>
-        <div style="font-size:10.5px;color:${SLATE};margin-top:8px">Figures as of ${esc(nowStamp)}. Source: DC Dashboard and Attendance sheet.</div>
+        <div style="font-size:10.5px;color:${SLATE};margin-top:8px">Figures as of ${esc(nowStamp)}. Source: Outbound Dashboard and the SDR Attendance Tracker.</div>
       </div>
     </div>`);
 
@@ -10252,7 +10280,7 @@ Write in a natural human voice (not robotic, no meta-commentary about being an A
     P.push(`To: ${M.name}   Cc: ${ccNames.join(', ')||'-'}`); P.push('');
     P.push(`Hi ${(M.name||'').split(' ')[0]||'there'},`); P.push(''); P.push(intro); if (M.ramping) P.push(`(Target adjusted for tenure: scaled goal ${M.target} DCs.)`); P.push('');
     { const pl=scPlanPlain(M); if (pl.length){ P.push(''); P.push('WHAT IT TAKES THIS MONTH'); pl.forEach(l=>P.push(l)); } }
-    if (M.attPct!=null){ const ab=M.attBreak; P.push(''); P.push(`ATTENDANCE MTD: ${Math.round(M.attPct)}%${ab?` (${ab.present} present, ${ab.late} late, ${ab.absent} absent${ab.undertime?', '+ab.undertime+' undertime':''} of ${ab.scheduled} logged days)`:''}.${(ab&&ab.late>0)?` On-time (not late): ${Math.round(ab.present/ab.scheduled*100)}%.`:''}`); }
+    if (M.att){ const a=M.att, pl=(n,w)=>n+' '+w+(n===1?'':'s'); P.push(''); P.push(`ATTENDANCE MTD: ${a.rate.toFixed(2)}% of scheduled hours (through ${a.through}; target 95%). ${pl(a.unplanned,'unplanned absence')}, ${pl(a.ncns,'no-call no-show')}, ${pl(a.late,'late day')} (${a.lateMin} min), ${a.undertimeMin} min undertime. From GreatDay logs and attendance notices.`); }
     P.push(''); P.push('NEXT STEP'); P.push(nextStep);
     if (ai){ P.push(''); P.push('PERFORMANCE REVIEW'); P.push(ai.summary); (ai.suggestions||[]).forEach(s=>P.push('- '+s)); }
     P.push(''); P.push('ACKNOWLEDGEMENT REQUIRED WITHIN 48 HOURS');
@@ -10262,7 +10290,7 @@ Write in a natural human voice (not robotic, no meta-commentary about being an A
     P.push(''); P.push(M.sender); P.push(senderTitle);
     P.push('');
     P.push("This scorecard is a performance snapshot shared for your awareness and coaching. It is not, on its own, a disciplinary action. Any formal process would follow the company's standard procedures separately.");
-    P.push(`Figures as of ${nowStamp}. Source: DC Dashboard and Attendance sheet.`);
+    P.push(`Figures as of ${nowStamp}. Source: Outbound Dashboard and the SDR Attendance Tracker.`);
 
     return { html, plain:clDeDash(P.join('\n')), subject:clDeDash(subject), ccLine };
   }
