@@ -9935,10 +9935,10 @@ ${html}
         `About <b>${x.dialsNeeded}</b> a day ${goalTxt(x)} (${x.tgt.toFixed(2)} leads a day)${x.ownRate?', at your current conversion rate':', at the team target rates'}.`
           + (x.dialsNow!=null && x.dialsNow>=x.dialsNeeded
               ? (x.goal==='Meeting Expectations'
-                  ? ` You are already dialing enough, so the gap is call quality: how you open, handle objections and close for the meeting. Work on the #1 fix from Derek's latest weekly coaching review with your team lead.`
+                  ? ` You are already dialing enough, so the gap is call quality: how you open, handle objections and close for the meeting. Work on the #1 fix in Derek's latest weekly coaching email (subject "SDR Weekly Review") with your team lead.`
                   : ` You are already dialing enough, so the focus is keeping your conversion where it is.`)
               : (x.dialsNeeded > 450
-                  ? ` That is more than a shift realistically allows, so the bigger gap is call quality: how you open, handle objections and close for the meeting. Work on the #1 fix from Derek's latest weekly coaching review with your team lead.`
+                  ? ` That is more than a shift realistically allows, so the bigger gap is call quality: how you open, handle objections and close for the meeting. Work on the #1 fix in Derek's latest weekly coaching email (subject "SDR Weekly Review") with your team lead.`
                   : ''))]);
       rows.push(['Leads to book', `${x.have} so far`,
         x.more>0 ? `<b>${x.more}</b> more this month ${goalTxt(x)}${x.perDay!=null?`, about ${x.perDay.toFixed(2)} a working day for the ${x.remaining} working day${x.remaining===1?'':'s'} left`:''}.`
